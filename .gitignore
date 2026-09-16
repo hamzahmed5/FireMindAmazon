@@ -1,0 +1,46 @@
+# Gradle
+.gradle/
+build/
+app/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Android SDK local config (machine-specific)
+local.properties
+
+# Secrets / credentials - never commit
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+keystore.properties
+credentials.json
+google-services.json
+
+# Logs
+*.log
+logs/
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Node (backend)
+node_modules/
+backend/dist/
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.freebuff/
