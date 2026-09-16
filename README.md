@@ -194,6 +194,13 @@ similar titles, catalog integrity):
 # HTML report: app/build/reports/tests/testDebugUnitTest/index.html
 ```
 
+Live Bedrock state (one real Converse call; safe to run any time — prints
+a verdict and never prints secrets):
+
+```bash
+cd backend && node tools/live-check.mjs
+```
+
 Backend tests (39 tests — engine, HTTP contract, validation, error paths,
 the signed Bedrock request path, and every AI degradation path):
 
@@ -318,17 +325,17 @@ config is the backend URL (build-time, `FIREMIND_BACKEND_URL`).
 
 Stated plainly, so nothing here is overclaimed:
 
-1. **Bedrock has never been called against AWS itself.** The Converse
-   integration, the native SigV4 signer, request construction, response
-   validation and every degradation path are covered by tests, and the
-   signing implementation is pinned to a byte-identical signature produced
-   by AWS's own signer (botocore). What is still missing is a live call: no
-   AWS credentials existed in the build environment, and Bedrock
-   additionally requires model access to be granted on the account. So "the
-   request is built and signed exactly as AWS expects" is evidenced;
-   "this account can reach this model" is not. With credentials in
-   `backend/.env`, `/api/health` flips to `aiConfigured: true`, and any
-   failure degrades to the tested deterministic path.
+1. **Bedrock is live-configured; the account quota is the last gate.** Real
+   Converse calls have now been made from this project to AWS: the request
+   is accepted (no signature error), the model ids are valid, and the
+   account-level verification hold AWS places on new accounts lifted during
+   testing. What still blocks an end-to-end AI answer is the new-account
+   **daily token quota** (`429 Too many tokens per day`), which applies to
+   every Bedrock model tried (Claude Haiku, Nova Micro, Nova Lite) and
+   resets with time, not code. Check the current state any time with
+   `cd backend && node tools/live-check.mjs`. Until it clears, the backend
+   serves the tested deterministic path — by design, the product never
+   dead-ends — and `/api/health` honestly reports `aiConfigured: true`.
 2. **Validated on Fire OS-*equivalent* emulators, not Fire TV hardware.**
    The app was installed, launched and driven on Android TV images at API
    28 (Fire OS 7), API 30 (Fire OS 8) and API 33, including a run with

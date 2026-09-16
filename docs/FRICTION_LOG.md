@@ -287,6 +287,23 @@ Twenty real obstacles, of five kinds:
 3. **Defects only a real run could reveal** (F8, F12, F13, F14): an install-time crash, a silently ignored user constraint, a broken D-pad path, and background processes dying with the shell. None of these would have been caught by compiling, and the runtime query bug (F12) would have shipped in a "working" build.
 4. **Verification-tooling quirks** (F15, F16): assertion-unfriendly dump ordering and a release-build warning flood. Neither broke anything, but both made "is this actually working?" harder to answer than it should be.
 5. **A defect found only by writing tests** (F17): two Home-screen chips referenced genres that the engine did not understand, so "Sci-Fi" returned dramas. Like F12 and F13 it was invisible to the compiler — but unlike those, it surfaced from an invariant test rather than from manual use.
+
+---
+
+## F21 — A brand-new AWS account cannot invoke Bedrock on day one (two gates, in sequence)
+
+- **Date:** 2026-09-16
+- **Tool:** Amazon Bedrock (live, from a day-old AWS account created through `aws login`)
+- **Task:** Make the project's first real Bedrock call with real session credentials
+- **Expected:** A signed Converse request returns model output
+- **Actual:** Two separate 403/429 gates, in sequence, neither documented where the developer hits them. **Gate 1:** every Bedrock call returned `403 "Your account is currently being verified. Verification normally takes less than 2 hours."` — the account itself works (`sts get-caller-identity` succeeds, other services respond) while Bedrock specifically is held. **Gate 2:** hours later the hold lifted, and calls then returned `429 "Too many tokens per day, please wait before trying again."` — a fresh account's daily token budget, which applied identically to Claude Haiku, Nova Micro and Nova Lite. (A third surprise: `amazon.titan-text-express-v1:0` is end-of-life and returns a clean 404.)
+- **Error:** `bedrock-http-403: ... being verified ...`, then `bedrock-http-429: Too many tokens per day`
+- **Root cause:** New-account fraud controls and a default zero-ish token quota for Bedrock on new accounts. Both are account-state, not integration-state.
+- **Impact:** On a hackathon timeline this reads as "my integration is broken" when it is not. Distinguishing signal: a signature problem returns `SignatureDoesNotMatch` specifically; a permission problem returns `AccessDenied`; these gates return verification/quota language. The project's degradation design paid off exactly as intended — the app kept working, `/api/health` stayed truthful, and the failure reason landed in the server log.
+- **Workaround / fix:** Nothing to fix in code; wait out the verification, then the quota window. `backend/tools/live-check.mjs` turns "is it working *now*?" into one command with a plain-language verdict for each of these cases.
+- **Actionable recommendation:** Bedrock's onboarding should surface both waits at signup ("Bedrock access: ~2h verification, then a small daily token budget until quotas are raised") instead of letting each builder discover them as mysterious 403/429s. The quota error should also state the reset time — "wait" without a clock is the worst possible message on a deadline.
+
+---
 6. **Invalidating an independent implementation** (F18, F19, F20): the SigV4 signature that looked perfect but would have 403'd against real AWS, the Google-inclusive "Android TV" images that cannot prove Fire OS behavior, and two Windows traps whose symptom — empty output — imitates an app failure.
 
 The F18 finding is the one worth dwelling on. Every test involved passed, the build was clean, the code read correctly, and the output was a plausible 64-character signature. Nothing short of comparing it against AWS's own signer could distinguish right from wrong, which is precisely why "implemented but never executed" deserves to be stated as a limitation rather than treated as done.
