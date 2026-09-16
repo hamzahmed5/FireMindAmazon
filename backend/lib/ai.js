@@ -3,7 +3,7 @@
  * The frontend never parses model prose - it only ever receives
  * validated RecommendResponse JSON from this layer.
  */
-import { catalog, fallbackRecommendations, similarById, parseMood, parseRuntimeMax } from "./catalog.js";
+import { catalog, filterCandidates } from "./catalog.js";
 
 const MOVIE_BLOCK = catalog
   .map(
@@ -70,27 +70,9 @@ export async function aiSimilar(bedrock, movie, limit = 4) {
   return recs.slice(0, limit);
 }
 
-/** Candidate set shared by AI grounding and fallback ranking. */
-function filterCandidates(query, filters) {
-  const lower = (query ?? "").toLowerCase();
-  const mood = parseMood(lower);
-  const runtimeMax = filters.runtimeMax ?? parseRuntimeMax(lower);
-  let pool = catalog.slice();
-  if (filters.familyOnly === true || lower.includes("family") || lower.includes("kid")) {
-    pool = pool.filter((m) => m.familyFriendly);
-  }
-  if (runtimeMax) pool = pool.filter((m) => m.runtime <= runtimeMax);
-  if (pool.length === 0) pool = catalog.slice();
-  if (!mood && !runtimeMax) return pool.sort((a, b) => b.rating - a.rating).slice(0, 12);
-  return pool
-    .sort((a, b) => {
-      const moodA = mood && a.moods.includes(mood) ? 1 : 0;
-      const moodB = mood && b.moods.includes(mood) ? 1 : 0;
-      if (moodA !== moodB) return moodB - moodA;
-      return b.rating - a.rating;
-    })
-    .slice(0, 12);
-}
+// The candidate set the model may choose from comes from the same shared
+// engine the deterministic fallback uses (imported above), so AI grounding
+// and offline picks can never rank differently.
 
 /** Pull the first JSON object out of model text (tolerates fences/prose). */
 function extractJson(text) {

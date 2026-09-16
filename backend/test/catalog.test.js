@@ -4,6 +4,7 @@ import {
   catalog,
   parseRuntimeMax,
   parseMood,
+  parseGenre,
   fallbackRecommendations,
   similarById,
 } from "../lib/catalog.js";
@@ -43,9 +44,54 @@ test("runtime parsing: spelled-out numbers (regression: 'two hours')", () => {
 test("mood parsing: synonyms and direct tags", () => {
   assert.equal(parseMood("something relaxing"), "Cozy");
   assert.equal(parseMood("a hilarious comedy"), "Funny");
-  assert.equal(parseMood("sci-fi please"), "Sci-Fi");
   assert.equal(parseMood("mind-bending twist"), "Mind-bending");
   assert.equal(parseMood("gibberish"), null);
+});
+
+test("genre parsing: synonyms and direct tags", () => {
+  assert.equal(parseGenre("sci-fi please"), "Sci-Fi");
+  assert.equal(parseGenre("a space movie"), "Sci-Fi");
+  assert.equal(parseGenre("something romantic"), "Romance");
+  assert.equal(parseGenre("an animated pick"), "Family");
+  assert.equal(parseGenre("thriller"), "Thriller");
+  assert.equal(parseGenre("gibberish"), null);
+});
+
+test("mood parsing never matches a tag that is not a catalog mood", () => {
+  // Regression: "sci-fi" and "family" are genres, not moods. The old
+  // engine returned them as moods, so a Sci-Fi request produced no
+  // sci-fi guarantee at all.
+  assert.equal(parseMood("sci-fi please"), null);
+  assert.equal(parseMood("family movie"), null);
+  assert.equal(parseMood("animated pick"), null);
+});
+
+test("a genre request returns titles of that genre", () => {
+  // Regression: tapping the Sci-Fi chip used to return top-rated titles
+  // regardless of genre.
+  const recs = fallbackRecommendations("Sci-Fi", {});
+  const byId = new Map(catalog.map((m) => [m.id, m]));
+  assert.ok(recs.length >= 3);
+  for (const r of recs) {
+    assert.ok(
+      byId.get(r.id).genres.includes("Sci-Fi"),
+      `'${r.title}' is not a sci-fi title`
+    );
+  }
+});
+
+test("a family chip request returns family friendly titles only", () => {
+  const recs = fallbackRecommendations("Family", {});
+  const byId = new Map(catalog.map((m) => [m.id, m]));
+  assert.ok(recs.length >= 3);
+  for (const r of recs) {
+    assert.equal(byId.get(r.id).familyFriendly, true, `'${r.title}' is not family friendly`);
+  }
+});
+
+test("reason strings name the interpreted genre", () => {
+  const recs = fallbackRecommendations("I want a sci-fi movie under two hours", {});
+  assert.ok(recs[0].reason.includes("Sci-Fi titles"));
 });
 
 test("fallback respects runtime cap and orders by mood then rating", () => {
