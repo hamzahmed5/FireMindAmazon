@@ -5,6 +5,11 @@
  * node:crypto. Credentials come exclusively from environment variables
  * (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION, optional
  * AWS_SESSION_TOKEN) - never from this repository.
+ *
+ * BEDROCK_ENDPOINT is a TEST-ONLY override that redirects calls to a local
+ * stub implementing the Converse API, so the AI path can be exercised in
+ * CI without AWS credentials. It is never set in production; leaving it
+ * unset always targets the real regional Bedrock endpoint.
  */
 import { createHash, createHmac } from "node:crypto";
 
@@ -18,8 +23,22 @@ function hmac(key, data) {
   return createHmac("sha256", key).update(data).digest();
 }
 
+/**
+ * SigV4 canonical URI: each path segment is URI-encoded a second time.
+ *
+ * This is the documented SigV4 rule for every service except S3, and it is
+ * subtle: the request on the wire carries the single-encoded path, while the
+ * canonical request signs the twice-encoded one. Signing the wire path
+ * instead produces a well-formed signature that the service rejects with
+ * 403 SignatureDoesNotMatch - verified against AWS's own signer by
+ * backend/tools/sigv4-crosscheck.mjs.
+ */
+export function canonicalUri(encodedPath) {
+  return encodedPath.replace(/%/g, "%25");
+}
+
 /** AWS Signature Version 4 headers for a POST request. */
-export function sigv4Headers({ host, path: reqPath, body, region, accessKey, secretKey, sessionToken, amzDate, dateStamp }) {
+export function sigv4Headers({ host, path: reqPath, canonicalPath, body, region, accessKey, secretKey, sessionToken, amzDate, dateStamp }) {
   const payloadHash = sha256Hex(body);
   const canonicalHeaders =
     `content-type:application/json\n` +
@@ -30,7 +49,7 @@ export function sigv4Headers({ host, path: reqPath, body, region, accessKey, sec
 
   const canonicalRequest = [
     "POST",
-    reqPath,
+    canonicalPath ?? canonicalUri(reqPath),
     "",
     canonicalHeaders,
     signedHeaders,
@@ -77,6 +96,7 @@ export class BedrockClient {
     secretKey = process.env.AWS_SECRET_ACCESS_KEY,
     sessionToken = process.env.AWS_SESSION_TOKEN,
     timeoutMs = Number(process.env.BEDROCK_TIMEOUT_MS ?? 12_000),
+    endpoint = process.env.BEDROCK_ENDPOINT || null,
   } = {}) {
     this.region = region;
     this.modelId = modelId;
@@ -84,6 +104,10 @@ export class BedrockClient {
     this.secretKey = secretKey;
     this.sessionToken = sessionToken;
     this.timeoutMs = timeoutMs;
+    // Real regional endpoint by default; a stub URL only when explicitly set.
+    this.baseUrl = endpoint
+      ? new URL(endpoint)
+      : new URL(`https://bedrock-runtime.${region}.amazonaws.com`);
   }
 
   get configured() {
@@ -97,7 +121,11 @@ export class BedrockClient {
   async converse({ system, prompt, maxTokens = 700 }) {
     if (!this.configured) throw new Error("bedrock-not-configured");
 
-    const host = `bedrock-runtime.${this.region}.amazonaws.com`;
+    // Host (and port, for a stub) must match what is signed, so it is always
+    // derived from the URL actually being called.
+    const host = this.baseUrl.host;
+    // Wire path is encoded once; the signer twice-encodes it for the
+    // canonical request (see canonicalUri).
     const reqPath = `/model/${encodeURIComponent(this.modelId)}/converse`;
     const body = JSON.stringify({
       system: system ? [{ text: system }] : undefined,
@@ -124,7 +152,7 @@ export class BedrockClient {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      const resp = await fetch(`https://${host}${reqPath}`, {
+      const resp = await fetch(new URL(reqPath, this.baseUrl), {
         method: "POST",
         headers,
         body,

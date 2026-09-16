@@ -159,6 +159,13 @@ server.listen(PORT, () => {
   console.log(
     `[firemind] AI mode: ${bedrock.configured ? `Bedrock (${bedrock.modelId})` : "disabled - deterministic fallback active"}`
   );
+  if (process.env.BEDROCK_ENDPOINT) {
+    console.warn(
+      `[firemind] WARNING: BEDROCK_ENDPOINT is set to ${process.env.BEDROCK_ENDPOINT}. ` +
+        "This TEST-ONLY override redirects signed Bedrock requests away from AWS; " +
+        "signed requests would be sent there. Unset it in any real deployment."
+    );
+  }
 });
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
