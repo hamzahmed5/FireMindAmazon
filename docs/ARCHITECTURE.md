@@ -64,6 +64,33 @@
 Verified on the emulator: the two-hour request returns 104/118/113-minute
 titles with no over-cap leak.
 
+## Signing, and how it was verified
+
+`lib/bedrock.js` signs requests itself with `node:crypto` (~40 lines rather
+than an SDK). Two details are easy to get wrong, so both are pinned by
+tests:
+
+- **The canonical URI is encoded twice.** Every SigV4 service except S3
+  signs a twice-encoded path, while the request on the wire carries the
+  single-encoded one (`/model/<id>/converse`, with the model id's `:` as
+  `%3A`). Signing the wire path produces a valid-looking signature that the
+  service rejects with `403 SignatureDoesNotMatch`.
+- **`x-amz-content-sha256` is signed.** AWS's own SDK omits it for non-S3
+  services; including it is permitted and binds the signature to the exact
+  bytes sent.
+
+Correctness is established by comparison against AWS's own signer rather
+than by self-consistency. `tools/sigv4-oracle.py` asks botocore to build and
+sign the identical Converse request (dummy credentials, no network, pinned
+clock), and `tools/sigv4-crosscheck.mjs` recomputes the signature with
+FireMind's signer and diffs the two. The resulting signature is frozen into
+`test/bedrock.test.js` as a known-answer test, so the suite keeps checking
+AWS's value rather than our own.
+
+Neither tool is a runtime dependency: botocore is not required to run or test
+the backend. What this does *not* establish is that a given AWS account has
+Bedrock model access — see Known limitations in the README.
+
 ## Degradation strategy (the product never dead-ends)
 
 Three independent failure points, each with a defined fallback:
@@ -155,6 +182,7 @@ work runs on `Dispatchers.IO` inside the ViewModel's coroutine scope, with
 The backend uses only `node:http`, `node:crypto`, and `node:fs`. Benefits:
 no supply-chain surface, `npm install` is a no-op for judges, and SigV4
 signing is ~40 readable lines rather than an SDK. The tradeoff is manual
-implementation of signing (covered by a live smoke test against the real
-Bedrock endpoint is *not* possible without credentials — see Known
-Limitations in the README).
+implementation of signing, which is why it is cross-checked against
+botocore and pinned with a known-answer test (see *Signing, and how it was
+verified* above) — a hand-rolled signer that is merely self-consistent
+proves nothing.

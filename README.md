@@ -194,10 +194,27 @@ similar titles, catalog integrity):
 # HTML report: app/build/reports/tests/testDebugUnitTest/index.html
 ```
 
-Backend tests (21 tests — engine, HTTP contract, validation, error paths):
+Backend tests (39 tests — engine, HTTP contract, validation, error paths,
+the signed Bedrock request path, and every AI degradation path):
 
 ```bash
 cd backend && npm test
+```
+
+The Bedrock tests stand up a local stub that speaks the Converse API, so the
+real orchestrator and the real signer run end to end without AWS
+credentials: the arriving request is asserted to be correctly signed and
+shaped, and a 500, prose, or empty model response must each degrade to
+deterministic picks rather than surfacing an error.
+
+Signature correctness is pinned against **AWS's own signer**: a known-answer
+test asserts the exact signature botocore produces for the identical
+request. Re-derive that value with (botocore is deliberately *not* a project
+dependency):
+
+```bash
+pip install botocore
+python backend/tools/sigv4-oracle.py --json | node backend/tools/sigv4-crosscheck.mjs
 ```
 
 Because the app's offline engine and the backend's fallback engine
@@ -235,6 +252,16 @@ All captured from the running app on the Android TV emulator
 | About / backend status |
 |---|
 | ![About](docs/screenshots/07-about-backend-status.png) |
+
+### Fire OS compatibility runs
+
+Fire OS 7 is Android 9 (API 28) and Fire OS 8 is Android 11 (API 30). The
+app was installed and driven on both, and once more on API 28 with Google
+Play services disabled, since no Fire OS build ships them:
+
+| Fire OS 7 (API 28) | Fire OS 8 (API 30) | Fire OS 7, Google services disabled |
+|---|---|---|
+| ![Fire OS 7](docs/screenshots/fireos7-api28.png) | ![Fire OS 8](docs/screenshots/fireos8-api30.png) | ![Fire OS 7 without Google services](docs/screenshots/fireos7-api28-no-google-services.png) |
 
 ## Verified Behavior
 
@@ -291,18 +318,25 @@ config is the backend URL (build-time, `FIREMIND_BACKEND_URL`).
 
 Stated plainly, so nothing here is overclaimed:
 
-1. **Amazon Bedrock is implemented but not executed.** The Converse
-   integration, SigV4 signing, and JSON-contract validation are complete
-   and covered by tests, but no AWS credentials were available in the
-   build environment, so no live Bedrock call was ever made. The fallback
-   path is what has been exercised. With credentials configured
-   (`backend/.env.example`), the AI path activates; any failure degrades
-   to the tested deterministic path.
-2. **Validated on an Android TV emulator, not Fire TV hardware.** The TV
-   experience was verified on an Android TV 13 (`android-33`,
-   `tv_1080p`) emulator — Amazon's own Fire TV simulator has been retired.
-   Fire OS version skew, the Fire TV launcher, and real remote-specific
-   keys are therefore untested.
+1. **Bedrock has never been called against AWS itself.** The Converse
+   integration, the native SigV4 signer, request construction, response
+   validation and every degradation path are covered by tests, and the
+   signing implementation is pinned to a byte-identical signature produced
+   by AWS's own signer (botocore). What is still missing is a live call: no
+   AWS credentials existed in the build environment, and Bedrock
+   additionally requires model access to be granted on the account. So "the
+   request is built and signed exactly as AWS expects" is evidenced;
+   "this account can reach this model" is not. With credentials in
+   `backend/.env`, `/api/health` flips to `aiConfigured: true`, and any
+   failure degrades to the tested deterministic path.
+2. **Validated on Fire OS-*equivalent* emulators, not Fire TV hardware.**
+   The app was installed, launched and driven on Android TV images at API
+   28 (Fire OS 7), API 30 (Fire OS 8) and API 33, including a run with
+   Google Play services disabled to approximate Fire OS. Its dependency
+   graph contains no Play services at all, and it requests only INTERNET
+   and ACCESS_NETWORK_STATE. Still untested: physical Fire TV hardware, the
+   Fire TV launcher's own behavior (Amazon's simulator is retired), and
+   remote-specific keys.
 3. **The release APK is unsigned.** `assembleRelease` produces
    `app-release-unsigned.apk` (1.4 MB). I signed a copy with a throwaway
    local key to verify the minified build actually runs; that key lives in
@@ -311,7 +345,7 @@ Stated plainly, so nothing here is overclaimed:
 4. **The two recommendation engines are kept in sync by hand.** The app
    (Kotlin) and backend (JavaScript) implement the same intent parsing and
    ranking, and both suites assert the same expectations (32 app tests,
-   21 backend tests), but nothing enforces the parity automatically —
+   39 backend tests), but nothing enforces the parity automatically —
    changing one engine requires mirroring the change in the other. The
    tables were verified identical when this was written.
 5. **No demo video yet** — the shot list is ready in `docs/DEMO_SCRIPT.md`;

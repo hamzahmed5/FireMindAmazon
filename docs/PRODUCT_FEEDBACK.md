@@ -21,7 +21,7 @@ themselves and on specific, actionable suggestions.
 | Android TV emulator (`system-images;android-33;android-tv;x86`) | Running and verifying FireMind on a TV environment (Fire OS stand-in) |
 | `adb` + `uiautomator` | Installing the APK, driving D-pad input, verifying focus/screens, logcat crash analysis |
 | Node.js 20+ (stdlib `http`, `crypto`, `fs`) and its built-in test runner | The backend API, AI orchestration, and 16 tests |
-| Amazon Bedrock (Converse API) | AI reasons/summaries — implemented, configured, **not executed** (no AWS credentials available in this environment) |
+| Amazon Bedrock (Converse API) | AI reasons/summaries — implemented; request/signing/validation/fallback all executed against a local Converse stub with the signature pinned to botocore's. **Never called against live AWS** (no credentials in this environment) |
 | Amazon/Android developer documentation | Verifying current guidance for TV manifests, Compose for TV, and Fire TV app expectations |
 
 ---
@@ -95,7 +95,8 @@ themselves and on specific, actionable suggestions.
 **What needs improvement**
 
 - **ABI naming is confusing.** TV images for API 33 are published as `arm64-v8a` and `x86` — the `x86` tag runs fine on an x86_64 host, but guessing `x86_64` silently aborts the install (see FRICTION_LOG F2).
-- **The need for a Fire TV–specific stand-in is real.** Amazon's Fire TV simulator has been retired, so Android TV images are the practical substitute; the platform differences this leaves untested (Fire OS version skew, Fire TV launcher behaviour, remote-specific keys) are the ones I could not verify.
+- **The need for a Fire TV–specific stand-in is real.** Amazon's Fire TV simulator has been retired, so Android TV images are the practical substitute. Testing at the matching API levels (API 28 for Fire OS 7, API 30 for Fire OS 8) closes much of the gap, but Fire TV launcher behaviour and remote-specific keys remain unverified without hardware.
+- **Every TV system image includes Google Play services, unlike Fire OS.** The images report as `sdk_google_atv_x86`; there is no GMS-free `aosp`-style variant for TV the way there is for handhelds (`aosp_atd`). So "does this app run without Play services?" — a hard requirement for Fire OS — cannot be answered by simply launching an emulator. Disabling GMS works, but it also kills the bundled TV launcher, whose crash is easy to mistake for your own app's. A GMS-free TV image, or a clear label on the Google-inclusive tag, would close this directly.
 
 **Would I build with it again?** Yes — emulator-based TV verification with adb-driven input is the fastest way to prove a TV app actually runs, and it caught three defects a compile never would have.
 
@@ -148,8 +149,10 @@ themselves and on specific, actionable suggestions.
 
 **What needs improvement**
 
-- **Not verified by me.** I had no AWS credentials in this environment, so the Bedrock path is implemented, unit-covered at the contract level, and *never executed against the live service*. I am explicitly not claiming it works end-to-end. The design mitigates this: any AI failure (including an invalid response) degrades to the tested deterministic path, and `/api/health` reports `aiConfigured`.
-- **Local testing story for credentials.** For hackathon builders on a laptop without an AWS account, there is no obvious light-weight "does my Bedrock integration work?" path; a documented sandbox or a stubbed Converse endpoint would materially de-risk adoption.
+- **Still never called against live AWS.** No credentials existed in this environment, so the integration has not been exercised against the real service. What I *could* verify I did: the request path runs end-to-end against a ~40-line local stub that speaks the Converse API, and the signature is asserted equal to the one botocore produces for the identical request. See the next two bullets — without that comparison I would have shipped a signer that 403s on every call.
+- **The SigV4 canonical-URI rule is a documentation trap.** Every service except S3 signs a **twice**-URI-encoded path while sending the single-encoded one. The rule is stated in the SigV4 reference but is easy to miss next to the *request* being correct and the signature still being a plausible 64-hex string. When it is wrong, the service returns `403 SignatureDoesNotMatch` with no indication of *which* component of the canonical request differed. Documenting the rule next to the Bedrock endpoint documentation — and naming the mismatched component in the 403 message — would have saved a real debugging session.
+- **`x-amz-content-sha256` is not signed by botocore for non-S3 services,** which makes "diff my signature against the SDK's" harder than it should be: the two sign different header sets until you align them by hand. A documented canonical request (or a debug mode that echoes the exact string-to-sign) would remove that step.
+- **The local testing story is genuinely thin — but cheap to fix.** The improvement I suggested while building this turned out to be the thing that made verification possible at all: a ~40-line `node:http` stub that returns a Converse-shaped envelope let the whole AI path run with no account, no credentials and no network. That deserves to be a documented, supported option rather than something each developer invents.
 
 **Would I build with it again?** Yes — the Converse API and SigV4 design are pleasant, and the model-agnostic shape is exactly what a small project wants. I would verify it live with credentials before submitting.
 

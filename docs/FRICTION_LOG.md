@@ -230,17 +230,65 @@ happened and cost time — nothing here is hypothetical or fabricated.
 - **Impact:** A core feature was quietly degraded: a viewer asking for sci-fi got a drama. The demo query "mind-bending sci-fi under two hours" returned one non-sci-fi, non-mind-bending title (a Drama/Mystery).
 - **Workaround / fix:** Added first-class genre intent to both engines (`parseGenre` + genre synonyms), restricted mood matching to tags that actually exist in the catalog, removed the dead `kids`/`children`/`animated` → mood mappings in favour of the audience filter and the Family genre, used genre as a ranking tiebreaker after mood, named the detected genre in the reason string, and made the tables identical in both languages. The demo query now returns three titles that each match mood, genre and runtime.
 - **Actionable recommendation:** Derive UI filter labels from the data instead of hand-writing them, and add a "filter option resolves to real data" invariant test — it is a two-line test that caught a user-visible recommendation defect that compile-checking, manual clicking, and even the original backend suite had all missed.
+---
+
+## F18 — The SigV4 signature was well-formed, deterministic… and wrong
+
+- **Date:** 2026-09-16
+- **Tool:** FireMind's own signer (`backend/lib/bedrock.js`) cross-checked against botocore 1.43.95 (the library behind the AWS CLI)
+- **Task:** Prove the hand-rolled SigV4 implementation is *correct*, not merely self-consistent. The existing tests asserted the Authorization header's shape, determinism, and that the payload hash covered the body — all of which passed.
+- **Expected:** For an identical host, path, body, timestamp, region and credentials, our signature equals the one AWS's own signer produces.
+- **Actual:** The signatures **differed**. Everything visible matched — same signed-header set (`content-type;host;x-amz-content-sha256;x-amz-date`), same credential scope, same payload hash — yet the signature was wrong. The cause: SigV4 signs a **twice-URI-encoded** canonical path for every service except S3, while the request on the wire carries the single-encoded path. We signed the wire path. Encoding the path a second time (`%3A` → `%253A`) reproduced botocore's signature byte-for-byte.
+- **Error:** None locally — every test passed. Against the live service this would have been `403 SignatureDoesNotMatch` on **every** Bedrock call, with no local symptom whatsoever.
+- **Root cause:** The canonical URI rule is easy to miss precisely because both paths are *valid URLs* and the signature is a valid-looking 64-hex string either way. Nothing about the output signals which one was signed.
+- **Impact:** Potentially severe. The entire AI path would have failed the first time it met real AWS, and because failures degrade silently to the deterministic fallback by design, it would have presented as "AI appears to be off" rather than as a bug — the demo would have looked fine while the flagship feature never once worked. This is exactly what "implemented but never executed" conceals.
+- **Workaround / fix:** Added `canonicalUri()` (encode the already-encoded path a second time) and used it for the canonical request while leaving the wire path untouched. Pinned it with a known-answer test asserting botocore's exact signature, plus a second test asserting that signing the *wire* path does **not** reproduce it, so a regression cannot pass quietly.
+- **Actionable recommendation:** Cross-check any hand-rolled SigV4 against an official SDK signer with the clock pinned. AWS's public conformance test suite is not sufficient here: it exercises the shared algorithm with service-agnostic canonicalization, and the defect above lives in a service-specific detail. Also worth knowing: botocore omits `x-amz-content-sha256` for non-S3 services, so aligning the header set explicitly is required before the two signatures are comparable at all.
 
 ---
 
+## F19 — The "Android TV" emulator images ship with Google Play services
+
+- **Date:** 2026-09-16
+- **Tool:** Android SDK TV system images (`system-images;android-28;android-tv;x86`, `android-30`)
+- **Task:** Prove FireMind runs on Fire OS, which ships **no** Google Play services
+- **Expected:** An AOSP-style TV image without Google services, as the handheld `aosp_atd` images provide
+- **Actual:** Every TV image available is a Google variant — the installed system reports `sdk_google_atv_x86`, and `pm list packages` confirms `com.google.android.gms` is present. So launching there proves nothing about Fire OS's GMS-free environment. Disabling `com.google.android.gms` and `com.android.vending` to simulate it then produced a `FATAL EXCEPTION` on the next launch — from the TV **launcher**, not the app.
+- **Error:** `FATAL EXCEPTION: AsyncDvrDbTask-0` / `Process: com.android.tv, PID: 4473` — while FireMind itself logged `Displayed com.firemind.app.debug/…MainActivity: +2s507ms` with zero exceptions.
+- **Root cause:** There is no GMS-free TV system image in the SDK repository, and the bundled TV launcher hard-depends on Play services, so removing them kills the launcher. A blunt `grep -c "FATAL EXCEPTION"` cannot tell the two apart.
+- **Impact:** Two problems at once: the Fire OS claim cannot be tested on the default TV images, and the decoy crash invites either a false negative ("our app crashed") or a false positive if the count is ignored entirely.
+- **Workaround / fix:** Disable Google services, then attribute each crash by **process name** instead of counting exceptions; separately confirm the app's dependency graph is GMS-free (`./gradlew :app:dependencies`) and that `aapt2 dump badging` shows only the expected permissions and a `leanback-launchable-activity`. With services disabled the app rendered all 88 UI nodes and staged no exceptions of its own.
+- **Actionable recommendation:** Publish a GMS-free AOSP TV image (or label the `android-tv` tag as Google-inclusive at install time). For app teams, make "does this APK depend on Play services?" a lint or a `badging` flag rather than something each developer rediscovers while chasing a launcher crash.
+
+---
+
+## F20 — Silent empty output: MSYS path mangling and console encoding
+
+- **Date:** 2026-09-16
+- **Tool:** `adb` (Git Bash on Windows) + `uiautomator dump` + Python
+- **Task:** Read the device's UI hierarchy over adb to automate screen verification
+- **Expected:** `adb shell cat /sdcard/window_dump.xml` returns the XML
+- **Actual:** It returned **nothing, silently**. MSYS had rewritten the argument `/sdcard/window_dump.xml` into `C:/Program Files/Git/sdcard/window_dump.xml`, so adb was asked to read a nonexistent local path. Once that was fixed, the next run failed with `UnicodeEncodeError: 'charmap' codec can't encode character '\u2605'` — the ★ in the rating text, unrepresentable in the Windows console's cp1252 — which looked like a dump failure but was a *printing* failure.
+- **Error:** Empty stdout with exit code 0, then `UnicodeEncodeError: 'charmap' codec can't encode character '\u2605' in position 94`
+- **Root cause:** Two independent Windows-only traps: MSYS auto-converts Unix-looking paths in arguments, and Python's stdout defaults to the console codepage rather than UTF-8.
+- **Impact:** Both failures are indistinguishable from "the app rendered nothing" / "the hierarchy is empty", which is the worst possible symptom during UI verification — it points at the app rather than at the tooling, and cost several round-trips.
+- **Workaround / fix:** `export MSYS_NO_PATHCONV=1`, prefer `adb pull` over `adb shell cat`, and set `PYTHONIOENCODING=utf-8` (or ASCII-escape output) when printing device text.
+- **Actionable recommendation:** Path conversion should be opt-in rather than automatic, or MSYS should refuse to rewrite an argument whose target is obviously a device path; and CLIs that print device-sourced Unicode should default to UTF-8 instead of the local codepage.
+
+---
+
+
 ## Summary
 
-Seventeen real obstacles, of three kinds:
+Twenty real obstacles, of five kinds:
 
 1. **Tooling/argument-handling traps** (F1, F2, F3, F9, F10): all silent or misleading failures — wrong paths, exit code `0` after installing nothing, servers bound to the wrong port.
 2. **Version/compatibility walls** (F5, F6, F7, F11): legitimate metadata-driven pinning work, with error messages that pointed at Kotlin/Java symptoms rather than the dependency or typing cause.
 3. **Defects only a real run could reveal** (F8, F12, F13, F14): an install-time crash, a silently ignored user constraint, a broken D-pad path, and background processes dying with the shell. None of these would have been caught by compiling, and the runtime query bug (F12) would have shipped in a "working" build.
 4. **Verification-tooling quirks** (F15, F16): assertion-unfriendly dump ordering and a release-build warning flood. Neither broke anything, but both made "is this actually working?" harder to answer than it should be.
 5. **A defect found only by writing tests** (F17): two Home-screen chips referenced genres that the engine did not understand, so "Sci-Fi" returned dramas. Like F12 and F13 it was invisible to the compiler — but unlike those, it surfaced from an invariant test rather than from manual use.
+6. **Invalidating an independent implementation** (F18, F19, F20): the SigV4 signature that looked perfect but would have 403'd against real AWS, the Google-inclusive "Android TV" images that cannot prove Fire OS behavior, and two Windows traps whose symptom — empty output — imitates an app failure.
 
-Every entry above was fixed and re-verified before moving on. Current state: 16/16 backend tests passing, a full D-pad journey confirmed on the emulator, and both debug and minified release builds launched successfully on the TV emulator.
+The F18 finding is the one worth dwelling on. Every test involved passed, the build was clean, the code read correctly, and the output was a plausible 64-character signature. Nothing short of comparing it against AWS's own signer could distinguish right from wrong, which is precisely why "implemented but never executed" deserves to be stated as a limitation rather than treated as done.
+
+Every entry above was fixed and re-verified before moving on. Current state: 39/39 backend tests and 32/32 app tests passing, the Bedrock path executed end-to-end against a Converse stub with the signature pinned to AWS's own output, a full D-pad journey confirmed on the emulator, and the app installed and driven on Fire OS 7 (API 28) and Fire OS 8 (API 30) equivalents — including with Google services disabled.
