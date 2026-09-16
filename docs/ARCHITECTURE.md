@@ -75,10 +75,32 @@ Three independent failure points, each with a defined fallback:
 | AI call fails, times out, or violates the JSON contract | Backend logs the reason and returns the deterministic fallback in the same response shape |
 
 The local engine and the backend engine implement the same intent parsing
-(mood synonyms, digit and word-number runtime caps, family filtering) and
-the same ranking rules, so the experience is consistent regardless of
-which path serves the request. Both are covered by tests, and the app-side
-copy is deliberately small and dependency-free.
+and the same ranking rules, so the experience is consistent regardless of
+which path serves the request:
+
+- **Moods** — curated synonyms (`relaxing` → `Cozy`, `hilarious` →
+  `Funny`) then direct matches against mood tags that exist in the catalog
+- **Genres** — curated synonyms (`space`, `scifi` → `Sci-Fi`;
+  `romantic` → `Romance`) then direct matches against real genre tags
+- **Runtime cap** — digits and spelled-out numbers (`under 2 hours`,
+  `under two hours` → 120 minutes)
+- **Audience** — family-friendly filtering from an explicit flag or
+  audience wording (`family`, `kids`, `children`, `animated`)
+- **Ranking** — mood match, then genre match, then rating; ties keep
+  catalog order, so results are deterministic
+
+Intent parsing deliberately matches only against tags that exist in the
+catalog, so a chip or phrase can never "match" a tag that no title
+carries. The UI chips are covered by an invariant test asserting that each
+one resolves to a real mood or genre — that test caught two chips
+(`Sci-Fi`, `Family`) that previously constrained nothing because the
+engine had no genre concept (see FRICTION_LOG.md F17).
+
+Both engines are covered by mirrored test suites (32 app tests, 21
+backend tests), and the app-side copy is deliberately small and
+dependency-free. Keeping them in step is a manual discipline: changing
+one means changing the other, and the synonym tables were verified
+identical when this document was written.
 
 ## UI and focus model (TV-first)
 

@@ -218,13 +218,29 @@ happened and cost time — nothing here is hypothetical or fabricated.
 
 ---
 
+## F17 — A chip that promised Sci-Fi delivered no Sci-Fi (found by writing tests)
+
+- **Date:** 2026-09-16
+- **Tool:** FireMind app + backend (own code) — found while adding unit tests
+- **Task:** Write app-side tests for the deterministic engine, matching the backend suite
+- **Expected:** The catalog's mood tags and the Home screen's mood chips describe the same thing
+- **Actual:** Writing an invariant test ("every chip resolves to a real catalog mood or genre") failed: the catalog has **8 moods** (Serious, Cozy, Funny, Whimsical, Mind-bending, Heartfelt, Exciting, Tense) and **9 genres**, but two of the seven chips — **"Family" and "Sci-Fi" — are genres, not moods**, and the engine had **no genre concept at all**. Tapping "Sci-Fi" returned the top-rated titles regardless of genre. Separately, the mood-synonym tables in the app and backend had drifted: the app was missing `sci-fi`, `space`, `clever`, `scary`, `animated` and others, so the same sentence produced different results depending on whether the AI backend or the on-device engine answered.
+- **Error:** No runtime error at all. The engine simply matched a nonexistent mood tag (yielding zero mood matches) and fell through to "sort by rating", which looks plausible on screen — a silently wrong answer, not a crash.
+- **Root cause:** The mood chips were written as UI labels rather than as references to real catalog tags, and the recommendation engine ranked only on `moods`, never on `genres`. Nothing tested the chip → data contract, so the gap was invisible.
+- **Impact:** A core feature was quietly degraded: a viewer asking for sci-fi got a drama. The demo query "mind-bending sci-fi under two hours" returned one non-sci-fi, non-mind-bending title (a Drama/Mystery).
+- **Workaround / fix:** Added first-class genre intent to both engines (`parseGenre` + genre synonyms), restricted mood matching to tags that actually exist in the catalog, removed the dead `kids`/`children`/`animated` → mood mappings in favour of the audience filter and the Family genre, used genre as a ranking tiebreaker after mood, named the detected genre in the reason string, and made the tables identical in both languages. The demo query now returns three titles that each match mood, genre and runtime.
+- **Actionable recommendation:** Derive UI filter labels from the data instead of hand-writing them, and add a "filter option resolves to real data" invariant test — it is a two-line test that caught a user-visible recommendation defect that compile-checking, manual clicking, and even the original backend suite had all missed.
+
+---
+
 ## Summary
 
-Sixteen real obstacles, of three kinds:
+Seventeen real obstacles, of three kinds:
 
 1. **Tooling/argument-handling traps** (F1, F2, F3, F9, F10): all silent or misleading failures — wrong paths, exit code `0` after installing nothing, servers bound to the wrong port.
 2. **Version/compatibility walls** (F5, F6, F7, F11): legitimate metadata-driven pinning work, with error messages that pointed at Kotlin/Java symptoms rather than the dependency or typing cause.
 3. **Defects only a real run could reveal** (F8, F12, F13, F14): an install-time crash, a silently ignored user constraint, a broken D-pad path, and background processes dying with the shell. None of these would have been caught by compiling, and the runtime query bug (F12) would have shipped in a "working" build.
 4. **Verification-tooling quirks** (F15, F16): assertion-unfriendly dump ordering and a release-build warning flood. Neither broke anything, but both made "is this actually working?" harder to answer than it should be.
+5. **A defect found only by writing tests** (F17): two Home-screen chips referenced genres that the engine did not understand, so "Sci-Fi" returned dramas. Like F12 and F13 it was invisible to the compiler — but unlike those, it surfaced from an invariant test rather than from manual use.
 
 Every entry above was fixed and re-verified before moving on. Current state: 16/16 backend tests passing, a full D-pad journey confirmed on the emulator, and both debug and minified release builds launched successfully on the TV emulator.

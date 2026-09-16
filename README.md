@@ -70,7 +70,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
 | Build | Gradle 8.14.5, Android Gradle Plugin 8.13.2, compileSdk 36, minSdk 23 |
 | Backend | Node.js ≥ 20, zero npm dependencies, stdlib `http` |
 | AI | Amazon Bedrock Converse API (SigV4 implemented natively, no AWS SDK) |
-| Tests | Node built-in test runner — 16 tests (backend); adb/uiautomator-driven D-pad and screen verification (app) |
+| Tests | 53 automated tests — 21 backend (Node built-in runner) + 32 app unit tests (JUnit, no device needed) — plus adb/uiautomator-driven D-pad and screen verification |
 
 ## Requirements
 
@@ -182,6 +182,30 @@ FIREMIND_BACKEND_URL="http://192.168.1.20:8080" ./gradlew assembleDebug
 Cleartext HTTP is permitted **only** for loopback/`10.0.2.2` dev hosts
 via the network security config; production should serve HTTPS.
 
+## Tests
+
+Both suites run without an emulator or a TV attached.
+
+App unit tests (32 tests — engine intent parsing, ranking, reason strings,
+similar titles, catalog integrity):
+
+```bash
+./gradlew testDebugUnitTest
+# HTML report: app/build/reports/tests/testDebugUnitTest/index.html
+```
+
+Backend tests (21 tests — engine, HTTP contract, validation, error paths):
+
+```bash
+cd backend && npm test
+```
+
+Because the app's offline engine and the backend's fallback engine
+implement the same behavior in two languages, both suites assert the same
+expectations (spelled-out runtimes, mood and genre intent, audience
+filtering, reason wording). Changing one engine means mirroring the change
+and its tests in the other.
+
 ## Demo
 
 Demo video: *(to be added — recording checklist and shot list in
@@ -227,7 +251,10 @@ emulator, not inferred from source:
 | Runtime constraint | "under two hours" → results of 104 / 118 / 113 min (no over-cap leak) |
 | Watchlist persistence | Survives `force-stop` and relaunch; DataStore file on disk |
 | Device → backend HTTP | About screen reports "backend online" via `10.0.2.2:8080` |
-| Backend | 16/16 tests pass (`npm test`), live health + recommend verified over HTTP |
+| Backend | 21/21 tests pass (`npm test`), live health + recommend verified over HTTP |
+| App unit tests | 32/32 pass (`./gradlew testDebugUnitTest`) — engine intent parsing, ranking, reason strings, similar titles, catalog integrity |
+| Engine parity | Mood and genre synonym tables verified identical between the Kotlin and JavaScript engines |
+| Genre chips | Tapping **Sci-Fi** returns only sci-fi titles; tapping **Family** returns only family-friendly titles (verified on device against the catalog data) |
 | Release-build catalog parsing | Home rail and Browse grid populate from the minified build (kotlinx-serialization survives R8) |
 
 
@@ -281,10 +308,12 @@ Stated plainly, so nothing here is overclaimed:
    local key to verify the minified build actually runs; that key lives in
    ignored `build/` output and is not part of the project. Real
    distribution needs your own signing key.
-4. **No Android-side unit tests.** Test coverage lives in the backend
-   (16 tests: engine, intent parsing, HTTP contract, error paths). The
-   app's local fallback engine mirrors that logic but is verified
-   manually.
+4. **The two recommendation engines are kept in sync by hand.** The app
+   (Kotlin) and backend (JavaScript) implement the same intent parsing and
+   ranking, and both suites assert the same expectations (32 app tests,
+   21 backend tests), but nothing enforces the parity automatically —
+   changing one engine requires mirroring the change in the other. The
+   tables were verified identical when this was written.
 5. **No demo video yet** — the shot list is ready in `docs/DEMO_SCRIPT.md`;
    recording is a manual step.
 6. **Single-locale (English) strings**, and the catalog is a fixed set of
