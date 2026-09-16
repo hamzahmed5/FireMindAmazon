@@ -38,6 +38,16 @@ android {
         buildConfig = true
     }
 
+    buildTypes.forEach { buildType ->
+        // Backend base URL. Cleartext HTTP is allowed by the network security
+        // config ONLY for loopback/10.0.2.2 dev hosts; production must be HTTPS.
+        buildType.buildConfigField(
+            "String",
+            "BACKEND_URL",
+            "\"${System.getenv("FIREMIND_BACKEND_URL") ?: "http://10.0.2.2:8080"}\""
+        )
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
