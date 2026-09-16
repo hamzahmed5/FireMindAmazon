@@ -10,9 +10,13 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.tv.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.firemind.app.FireMindViewModel
@@ -42,13 +46,16 @@ fun WatchlistScreen(
             )
         } else {
             Spacer(Modifier.height(8.dp))
+            val firstFocus = remember { FocusRequester() }
+            LaunchedEffect(movies.firstOrNull()?.id) { firstFocus.requestFocus() }
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(movies) { movie ->
                     MovieCard(
                         title = movie.title,
                         year = movie.year,
                         runtime = movie.runtime,
-                        onClick = { onOpenDetails(movie.id) }
+                        onClick = { onOpenDetails(movie.id) },
+                        modifier = if (movie === movies.first()) Modifier.focusRequester(firstFocus) else Modifier
                     )
                 }
             }

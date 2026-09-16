@@ -27,11 +27,18 @@ export const MOOD_CHIPS = [
   "Funny", "Exciting", "Family", "Sci-Fi", "Relaxing", "Cozy", "Mind-bending",
 ];
 
-/** Extract runtime cap in minutes from natural language ("under 100 minutes", "2 hours"). */
+/** Extract runtime cap in minutes from natural language ("under 100 minutes", "two hours"). */
 export function parseRuntimeMax(query) {
-  const lower = query.toLowerCase();
+  const lower = String(query ?? "").toLowerCase();
+  const wordNumbers = {
+    one: 1, two: 2, three: 3, four: 4, five: 5,
+    six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+    a: 1, an: 1, half: 0.5,
+  };
   const minutes = lower.match(/(\d+)\s*(min|minute)/);
   if (minutes) return Number(minutes[1]);
+  const wordHours = lower.match(/(one|two|three|four|five|six|seven|eight|nine|ten|a|an|half)\s*(hour|hr)/);
+  if (wordHours) return Math.round(wordNumbers[wordHours[1]] * 60);
   const hours = lower.match(/(\d+)\s*(hour|hr)/);
   if (hours) return Number(hours[1]) * 60;
   return null;

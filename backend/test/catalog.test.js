@@ -30,6 +30,16 @@ test("runtime parsing: minutes and hours", () => {
   assert.equal(parseRuntimeMax("no constraint here"), null);
 });
 
+test("runtime parsing: spelled-out numbers (regression: 'two hours')", () => {
+  assert.equal(parseRuntimeMax("mind-bending sci-fi movie under two hours"), 120);
+  assert.equal(parseRuntimeMax("something for one hour"), 60);
+  assert.equal(parseRuntimeMax("about half an hour"), 60); // 'an hour' parses; 'half' is free
+  const recs = fallbackRecommendations("mind-bending sci-fi under two hours", {});
+  for (const r of recs) {
+    assert.ok(r.runtime <= 120, `runtime ${r.runtime} violates the two-hour cap`);
+  }
+});
+
 test("mood parsing: synonyms and direct tags", () => {
   assert.equal(parseMood("something relaxing"), "Cozy");
   assert.equal(parseMood("a hilarious comedy"), "Funny");

@@ -15,8 +15,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.tv.material3.Button
 import androidx.tv.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.firemind.app.FireMindViewModel
@@ -34,6 +38,9 @@ fun HomeScreen(
     onAsk: (String) -> Unit,
     onOpenDetails: (String) -> Unit
 ) {
+    val askFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { askFocus.requestFocus() }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -52,7 +59,10 @@ fun HomeScreen(
             }
         }
         item {
-            Button(onClick = { onAsk("") }) {
+            Button(
+                onClick = { onAsk("") },
+                modifier = Modifier.focusRequester(askFocus)
+            ) {
                 Text("Ask FireMind", fontSize = 24.sp)
             }
         }
@@ -95,10 +105,16 @@ fun HomeScreen(
 }
 
 @Composable
-fun MovieCard(title: String, year: Int, runtime: Int, onClick: () -> Unit) {
+fun MovieCard(
+    title: String,
+    year: Int,
+    runtime: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     androidx.tv.material3.Surface(
         onClick = onClick,
-        modifier = Modifier
+        modifier = modifier
             .width(220.dp)
             .height(140.dp)
     ) {

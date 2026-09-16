@@ -13,11 +13,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.tv.material3.Button
 import androidx.tv.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.firemind.app.FireMindViewModel
@@ -41,6 +44,8 @@ fun DetailsScreen(
     }
     var similar by remember { mutableStateOf<com.firemind.app.data.model.RecommendResponse?>(null) }
     var showSimilar by remember { mutableStateOf(false) }
+    val watchlistButtonFocus = remember { FocusRequester() }
+    LaunchedEffect(movieId) { watchlistButtonFocus.requestFocus() }
 
     Column(
         modifier = Modifier
@@ -62,10 +67,13 @@ fun DetailsScreen(
         }
         Text(movie.description, fontSize = 22.sp)
 
-        Button(onClick = {
-            viewModel.toggleWatchlist(movie.id)
-            inWatchlist = !inWatchlist
-        }) {
+        Button(
+            onClick = {
+                viewModel.toggleWatchlist(movie.id)
+                inWatchlist = !inWatchlist
+            },
+            modifier = Modifier.focusRequester(watchlistButtonFocus)
+        ) {
             Text(
                 if (inWatchlist) "✓ In Watchlist (remove)" else "Add to Watchlist",
                 fontSize = 20.sp

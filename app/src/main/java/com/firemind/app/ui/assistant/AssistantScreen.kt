@@ -1,5 +1,6 @@
 package com.firemind.app.ui.assistant
 
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -73,10 +75,15 @@ fun AssistantScreen(
         LazyRow(
             state = rememberLazyListState(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusGroup()
         ) {
             items(PROMPTS) { prompt ->
-                Button(onClick = { onSubmit(prompt) }) {
+                Button(
+                    onClick = { onSubmit(prompt) },
+                    modifier = Modifier.focusProperties { up = FocusRequester.Cancel }
+                ) {
                     Text(prompt, fontSize = 18.sp)
                 }
             }
@@ -89,15 +96,20 @@ fun AssistantScreen(
         )
 
         KEY_ROWS.forEachIndexed { rowIndex, row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.focusGroup()
+            ) {
                 row.forEach { key ->
-                    Button(onClick = {
-                        draft = when (key) {
-                            "BKSP" -> draft.dropLast(1)
-                            "SPACE" -> "$draft "
-                            else -> draft + key.lowercase()
+                    Button(
+                        onClick = {
+                            draft = when (key) {
+                                "BKSP" -> draft.dropLast(1)
+                                "SPACE" -> "$draft "
+                                else -> draft + key.lowercase()
+                            }
                         }
-                    }) {
+                    ) {
                         Text(
                             when (key) {
                                 "SPACE" -> "␣"
@@ -112,7 +124,7 @@ fun AssistantScreen(
         }
 
         Button(
-            onClick = { onSubmit(draft) },
+            onClick = { if (draft.isNotBlank()) onSubmit(draft) },
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(focusRequester)

@@ -14,8 +14,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.tv.material3.Button
 import androidx.tv.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.firemind.app.AssistantUiState
@@ -52,23 +56,31 @@ fun ResultsScreen(
         is AssistantUiState.Results -> Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(40.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(40.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("For: \"${state.query}\"", fontSize = 24.sp)
                 Spacer(Modifier.width(16.dp))
                 Text(
-                    if (state.fromAi) "AI" else "offline picks",
+                    if (state.fromAi) "AI" else "curated picks",
                     fontSize = 16.sp,
                     color = if (state.fromAi) Brand else FocusBorder
                 )
             }
+            val firstFocus = remember { FocusRequester() }
+            LaunchedEffect(state.query) { firstFocus.requestFocus() }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(state.response.recommendations) { rec ->
                     androidx.tv.material3.Surface(
                         onClick = { onOpenDetails(rec.id) },
-                        modifier = Modifier.fillMaxWidth().height(150.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .then(
+                                if (rec === state.response.recommendations.first())
+                                    Modifier.focusRequester(firstFocus)
+                                else Modifier
+                            )
                     ) {
                         Column(
                             modifier = Modifier

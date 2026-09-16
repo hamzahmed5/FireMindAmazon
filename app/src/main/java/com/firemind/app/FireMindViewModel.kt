@@ -78,7 +78,16 @@ class FireMindViewModel(
     /** Deterministic in-app recommendation path (also used on backend failure). */
     private fun localRecommend(query: String, familyOnly: Boolean): List<Recommendation> {
         val q = query.lowercase()
+        val wordNumbers: Map<String, Double> = mapOf(
+            "one" to 1.0, "two" to 2.0, "three" to 3.0, "four" to 4.0, "five" to 5.0,
+            "six" to 6.0, "seven" to 7.0, "eight" to 8.0, "nine" to 9.0, "ten" to 10.0,
+            "a" to 1.0, "an" to 1.0, "half" to 0.5
+        )
         val runtimeMax = Regex("(\\d+)\\s*(min|minute)").find(q)?.groupValues?.get(1)?.toIntOrNull()
+            ?: Regex("(one|two|three|four|five|six|seven|eight|nine|ten|a|an|half)\\s*(hour|hr)")
+                .find(q)?.groupValues?.get(1)?.let { word ->
+                    wordNumbers[word]?.let { n -> (n * 60).toInt() }
+                }
             ?: Regex("(\\d+)\\s*(hour|hr)").find(q)
                 ?.groupValues?.get(1)?.toIntOrNull()?.times(60)
         val mood = CatalogRepository.MOOD_SYNONYMS.entries
