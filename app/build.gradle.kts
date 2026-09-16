@@ -38,6 +38,14 @@ android {
         buildConfig = true
     }
 
+    // Unit tests read the shipped catalog from src/main/assets so tests
+    // assert against the real data rather than a fixture copy.
+    sourceSets {
+        getByName("test") {
+            resources.srcDir("src/main/assets")
+        }
+    }
+
     buildTypes.forEach { buildType ->
         // Backend base URL. Cleartext HTTP is allowed by the network security
         // config ONLY for loopback/10.0.2.2 dev hosts; production must be HTTPS.
@@ -80,4 +88,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // Local (JVM) unit tests - no Android device or emulator required.
+    testImplementation("junit:junit:4.13.2")
 }
