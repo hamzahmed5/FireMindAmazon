@@ -29,6 +29,7 @@ import com.firemind.app.ui.common.PosterCard
 import com.firemind.app.ui.common.RatingPill
 import com.firemind.app.ui.common.ScreenHeader
 import com.firemind.app.ui.theme.Brand
+import com.firemind.app.ui.theme.TextPrimary
 import com.firemind.app.ui.theme.TextSecondary
 
 /**
@@ -68,7 +69,7 @@ fun DetailsScreen(
             Text("${movie.runtime} min", fontSize = 20.sp, color = TextSecondary)
             RatingPill(movie.rating)
         }
-        Text(movie.description, fontSize = 22.sp, lineHeight = 30.sp)
+        Text(movie.description, fontSize = 22.sp, lineHeight = 30.sp, color = TextPrimary)
 
         Button(
             onClick = {

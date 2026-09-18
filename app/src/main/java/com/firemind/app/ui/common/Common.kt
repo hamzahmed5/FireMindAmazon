@@ -29,6 +29,7 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Text
 import com.firemind.app.ui.theme.Brand
 import com.firemind.app.ui.theme.FocusBorder
+import com.firemind.app.ui.theme.Heading
 import com.firemind.app.ui.theme.RatingStar
 import com.firemind.app.ui.theme.SurfaceRaised
 import com.firemind.app.ui.theme.SurfaceVariant
@@ -90,7 +91,8 @@ private fun NavRailItem(label: String, selected: Boolean, onClick: () -> Unit) {
     ) {
         Text(
             label,
-            fontSize = 16.sp,
+            fontSize = 14.sp,
+            maxLines = 1,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
             color = if (selected) FocusBorder else TextSecondary
         )
@@ -107,6 +109,7 @@ fun LoadingScreen(message: String) {
         contentAlignment = Alignment.Center
     ) {
         Text(message, fontSize = 26.sp, color = TextSecondary)
+
     }
 }
 
@@ -120,7 +123,7 @@ fun ErrorScreen(message: String, onRetry: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text("Something went wrong", fontSize = 30.sp)
+        Text("Something went wrong", fontSize = 30.sp, color = Heading)
         Box(Modifier.height(12.dp))
         Text(message, fontSize = 20.sp, color = TextSecondary)
         Box(Modifier.height(24.dp))
@@ -138,7 +141,7 @@ fun EmptyScreen(title: String, subtitle: String) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(title, fontSize = 30.sp)
+        Text(title, fontSize = 30.sp, color = Heading)
         Box(Modifier.height(12.dp))
         Text(subtitle, fontSize = 20.sp, color = TextSecondary)
     }
@@ -151,7 +154,7 @@ fun EmptyScreen(title: String, subtitle: String) {
 @Composable
 fun ScreenHeader(title: String, subtitle: String? = null) {
     Column {
-        Text(title, fontSize = 36.sp, fontWeight = FontWeight.Bold)
+        Text(title, fontSize = 36.sp, fontWeight = FontWeight.Bold, color = Heading)
         Box(
             Modifier
                 .padding(top = 6.dp)
@@ -231,6 +234,7 @@ fun PosterCard(
                     title,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
+                    color = com.firemind.app.ui.theme.TextPrimary,
                     maxLines = 2,
                     modifier = Modifier
                         .align(Alignment.BottomStart)

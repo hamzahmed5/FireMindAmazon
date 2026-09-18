@@ -20,6 +20,15 @@ val SurfaceVariant = Color(0xFF1E2733)
 val SurfaceRaised = Color(0xFF232E3D)
 val TextPrimary = Color(0xFFF5F7FA)
 val TextSecondary = Color(0xFF9AA5B1)
+
+/**
+ * Default colours for bare Text composables. On androidx.tv.material3, Text
+ * with no explicit colour follows the TV theme's onSurface - but any Text
+ * living under the phone-material tree (or in a plain foundation surface)
+ * can fall back to the platform default, which is black. Screen code should
+ * use these for headings rather than relying on inheritance.
+ */
+val Heading = TextPrimary
 val FocusBorder = Color(0xFFFFD166)
 val RatingStar = Color(0xFFF5C518)
 
@@ -37,6 +46,30 @@ private val FireMindColorScheme = darkColorScheme(
 )
 
 /**
+ * The TV theme. This is the one that actually matters: every widget in this
+ * app is androidx.tv.material3, and those read THIS theme - not the phone
+ * material theme below. It went unwrong for a while: only the phone theme was
+ * configured, so TV widgets followed their own default, which follows the
+ * system setting - on a light-system device the whole UI rendered light
+ * surfaces with dark text on the app's dark backdrop. Configuring the TV
+ * scheme explicitly is what makes "this app is always dark" true.
+ */
+private val FireMindTvColorScheme = androidx.tv.material3.darkColorScheme(
+    primary = Brand,
+    onPrimary = Color.Black,
+    secondary = FocusBorder,
+    onSecondary = Color.Black,
+    background = Background,
+    onBackground = TextPrimary,
+    surface = Surface,
+    onSurface = TextPrimary,
+    surfaceVariant = SurfaceVariant,
+    onSurfaceVariant = TextSecondary,
+    border = FocusBorder,
+    borderVariant = SurfaceRaised
+)
+
+/**
  * App always renders dark - televisions are viewed in living rooms and
  * large bright surfaces cause eye strain; contrast stays high regardless
  * of system setting.
@@ -44,10 +77,12 @@ private val FireMindColorScheme = darkColorScheme(
 @Composable
 fun FireMindTheme(content: @Composable () -> Unit) {
     isSystemInDarkTheme() // evaluated for completeness; result intentionally ignored
-    MaterialTheme(
-        colorScheme = FireMindColorScheme,
-        content = content
-    )
+    androidx.tv.material3.MaterialTheme(colorScheme = FireMindTvColorScheme) {
+        MaterialTheme(
+            colorScheme = FireMindColorScheme,
+            content = content
+        )
+    }
 }
 
 /**

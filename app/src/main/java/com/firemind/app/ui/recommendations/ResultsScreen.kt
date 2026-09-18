@@ -32,9 +32,11 @@ import com.firemind.app.ui.common.ErrorScreen
 import com.firemind.app.ui.common.LoadingScreen
 import com.firemind.app.ui.common.RatingPill
 import com.firemind.app.ui.theme.Brand
+import com.firemind.app.ui.theme.Heading
 import com.firemind.app.ui.theme.SurfaceRaised
 import com.firemind.app.ui.theme.SurfaceVariant
 import com.firemind.app.ui.theme.TextPrimary
+
 import com.firemind.app.ui.theme.TextSecondary
 
 /**
@@ -66,7 +68,7 @@ fun ResultsScreen(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("For you", fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                    Text("For you", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Heading)
                     Text(
                         "\"${state.query}\"",
                         fontSize = 18.sp,
@@ -111,7 +113,8 @@ fun ResultsScreen(
                                 Text(
                                     "${rec.title}  ·  ${rec.year}  ·  ${rec.runtime} min",
                                     fontSize = 24.sp,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextPrimary
                                 )
                                 Spacer(Modifier.height(6.dp))
                                 Text(

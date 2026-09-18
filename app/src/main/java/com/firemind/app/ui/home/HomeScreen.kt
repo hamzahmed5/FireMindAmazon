@@ -29,6 +29,7 @@ import com.firemind.app.ui.common.Badge
 import com.firemind.app.ui.common.PosterCard
 import com.firemind.app.ui.common.ScreenHeader
 import com.firemind.app.ui.theme.Brand
+import com.firemind.app.ui.theme.Heading
 import com.firemind.app.ui.theme.TextSecondary
 
 /**
@@ -52,7 +53,7 @@ fun HomeScreen(
     ) {
         item {
             Column {
-                Text("What do you want to watch?", fontSize = 42.sp, fontWeight = FontWeight.Bold)
+                Text("What do you want to watch?", fontSize = 42.sp, fontWeight = FontWeight.Bold, color = Heading)
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     Badge("60 original titles", highlighted = false)
@@ -75,7 +76,7 @@ fun HomeScreen(
         }
         item {
             Column {
-                Text("Quick moods", fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
+                Text("Quick moods", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Heading)
                 Spacer(Modifier.height(8.dp))
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -91,7 +92,7 @@ fun HomeScreen(
         }
         item {
             Column {
-                Text("Recommended for you", fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
+                Text("Recommended for you", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Heading)
                 Spacer(Modifier.height(8.dp))
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
