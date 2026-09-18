@@ -126,7 +126,26 @@ Each answer carries the same badge the TV app shows — **AI · Amazon
 Bedrock** when the model answered, **Local · deterministic fallback** when
 it did not — so "is AI live right now?" is one page load instead of a log
 dig. It is served from the API's own origin, so there is no CORS setup to
-get wrong.
+get wrong. The same page is served by the AWS deployment, so a cloud
+backend can be watched in a browser too.
+
+### Deploy it to AWS (optional)
+
+The backend also runs on AWS, unchanged, as **API Gateway → Lambda → Bedrock**:
+
+```bash
+aws login                                # credentials with IAM + Lambda + API GW rights
+node tools/deploy-aws.mjs                # creates/updates everything, prints the URL
+node tools/deploy-aws.mjs --package-only # just build the zip, touch nothing in AWS
+```
+
+The function runs under an IAM role whose only permission is
+`bedrock:InvokeModel`, so **no AWS keys are stored in AWS** and the hourly
+`aws login` refresh that the laptop setup needs does not apply in the cloud.
+The account's Bedrock quota still does. The public URL is throttled
+(5 req/s, burst 10) with concurrency capped, so it cannot run up a bill.
+Point the app at it with `FIREMIND_BACKEND_URL="https://..."`. Full details,
+the console click-path, and cleanup commands: **[docs/DEPLOY_AWS.md](docs/DEPLOY_AWS.md)**.
 
 See `backend/.env.example`.
 
@@ -390,14 +409,21 @@ firemind/
 │           ├── data/                    # repository, watchlist, models
 │           └── ui/                      # home, assistant, results, details, browse, watchlist, settings
 ├── backend/                    # Zero-dependency Node server
-│   ├── server.js               # endpoints + validation + fallback
+│   ├── server.js               # local HTTP transport
+│   ├── lambda.mjs              # API Gateway -> Lambda transport
+│   ├── lib/router.js           # the routing both transports share
 │   ├── lib/bedrock.js          # native SigV4 + Bedrock Converse
 │   ├── lib/ai.js               # prompt design + JSON contract validation
 │   ├── lib/catalog.js          # deterministic recommendation engine
-│   └── test/                   # 15 unit + integration tests
+│   ├── lib/console.js          # browser console served at /
+│   ├── lib/env.js              # .env loading + port resolution
+│   └── test/                   # 62 unit + integration tests
 ├── data/catalog.json           # catalog copy served by the backend
-├── docs/                       # API spec, architecture, friction log, feedback
-└── tools/gen_assets.py         # original asset generator (icons/banner)
+├── docs/                       # API spec, architecture, deploy guide, friction log
+└── tools/
+    ├── gen_assets.py           # original asset generator (icons/banner)
+    ├── verify-fireos.sh        # repeatable Fire OS 7/8 emulator check
+    └── deploy-aws.mjs          # Lambda + API Gateway deployment
 ```
 
 ## Environment Variables

@@ -23,7 +23,9 @@
 |        FireMind backend                |
 |  Node.js >= 20, zero npm dependencies  |
 |                                        |
-|  server.js      routing + validation   |
+|  server.js      local HTTP transport   |
+|  lambda.mjs     API Gateway transport  |
+|  lib/router.js   routing (shared)       |
 |  lib/catalog.js filtering + ranking    |
 |  lib/ai.js      prompt + JSON contract |
 |  lib/bedrock.js Bedrock Converse, SigV4|
@@ -39,6 +41,23 @@
 |  credentials from environment only     |
 +----------------------------------------+
 ```
+
+## Two transports, one router
+
+`server.js` (local Node HTTP) and `lambda.mjs` (API Gateway → Lambda) are thin
+transports: each normalizes its own environment's request shape and hands it to
+`lib/router.js`, which owns every route, status code and error string. That is
+what lets the same app talk to a laptop over Wi-Fi *or* to a real AWS HTTPS
+endpoint with nothing but a different base URL, and it is why the Lambda path
+is testable in-process with synthetic API Gateway events and no AWS account
+(`backend/test/lambda.test.js`).
+
+Credentials differ by design, and never exist in code: locally the signer reads
+`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` from the
+environment or the gitignored `backend/.env`; in Lambda the runtime sets those
+same variables from the function's execution role, so the SigV4 code is
+unchanged and short-lived role credentials replace the hourly `aws login`
+refresh. Routing, prompts, catalog and fallback behavior are identical in both.
 
 ## Request flow: "I want a mind-bending sci-fi movie under two hours"
 
