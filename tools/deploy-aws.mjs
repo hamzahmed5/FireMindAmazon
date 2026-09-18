@@ -211,7 +211,7 @@ function modelId() {
 // --------------------------------------------------------------------------
 // 3. Lambda function
 // --------------------------------------------------------------------------
-function ensureFunction(roleArn, region) {
+function ensureFunction(roleArn) {
   step(`Lambda function ${FUNCTION_NAME}`);
   const exists = aws(
     ["lambda", "get-function", "--function-name", FUNCTION_NAME, "--query", "Configuration.FunctionArn", "--output", "text"],
@@ -266,8 +266,10 @@ function ensureFunction(roleArn, region) {
     "--environment",
     JSON.stringify({
       Variables: {
-        // Credentials are deliberately absent: the role provides them.
-        AWS_REGION: region,
+        // Credentials are deliberately absent: the role provides them, and
+        // AWS_REGION is absent because Lambda REJECTS it as a reserved key
+        // (InvalidParameterValueException) - the runtime always sets it to the
+        // function's own region, which is exactly what the signer needs.
         BEDROCK_MODEL_ID: modelId(),
         BEDROCK_TIMEOUT_MS: "12000",
       },
@@ -278,15 +280,28 @@ function ensureFunction(roleArn, region) {
 
   if (!SKIP_CAP) {
     // An open HTTPS endpoint that spends money must not be able to spend much.
-    aws([
-      "lambda",
-      "put-function-concurrency",
-      "--function-name",
-      FUNCTION_NAME,
-      "--reserved-concurrent-executions",
-      "2",
-    ]);
-    console.log("   reserved concurrency capped at 2");
+    // Best effort, not a hard requirement: a brand-new account can have an
+    // account concurrency limit of only 10, and reserving 2 would push the
+    // unreserved remainder below AWS's minimum of 10. The stage throttle below
+    // is the guard that always exists.
+    const cap = aws(
+      [
+        "lambda",
+        "put-function-concurrency",
+        "--function-name",
+        FUNCTION_NAME,
+        "--reserved-concurrent-executions",
+        "2",
+      ],
+      { allowFailure: true }
+    );
+    if (typeof cap === "string") {
+      console.log("   reserved concurrency capped at 2");
+    } else {
+      const reason = cap.message.split("\n")[0].replace(/^aws: \[ERROR\]: /, "");
+      console.log(`   concurrency cap not applied - ${reason}`);
+      console.log("   (stage throttling below is still in force)");
+    }
   }
 
   return aws(["lambda", "get-function", "--function-name", FUNCTION_NAME, "--query", "Configuration.FunctionArn", "--output", "text"]);
@@ -390,7 +405,7 @@ async function main() {
   const roleArn = ensureRole(identity.Account);
   console.log("   (IAM role changes can take ~10s to become usable)");
   execFileSync(process.execPath, ["-e", "setTimeout(()=>{}, 10000)"]);
-  const functionArn = ensureFunction(roleArn, region);
+  const functionArn = ensureFunction(roleArn);
   const url = await ensureApi(functionArn, region, identity.Account);
 
   step("deployed");

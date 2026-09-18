@@ -66,9 +66,9 @@ creating duplicates. It creates:
 1. **IAM role `firemind-lambda-role`** — logs, plus an inline policy granting
    exactly `bedrock:InvokeModel` for the configured model. Nothing else.
 2. **Lambda `firemind-backend`** — Node 20, `arm64`, 30 s timeout, 256 MiB,
-   handler `lambda.handler`, environment `AWS_REGION`, `BEDROCK_MODEL_ID`,
+   handler `lambda.handler`, environment `BEDROCK_MODEL_ID` and
    `BEDROCK_TIMEOUT_MS`. **No AWS keys are set**: the role supplies short-lived
-   credentials per invocation.
+   credentials per invocation, and `AWS_REGION` comes from the runtime.
 3. **HTTP API `firemind-api`** — one `$default` route in front of the function,
    throttled to **5 req/s steady, burst 10**, with Lambda reserved concurrency
    capped at **2**. Anyone who finds the URL cannot run up a bill.
@@ -95,8 +95,12 @@ its own modules.
 3. **Runtime settings → Edit** → Handler: **`lambda.handler`** → Save.
 4. **Configuration → General → Edit** → Timeout **30 s**, Memory **256 MB**.
 5. **Configuration → Environment variables → Edit**:
-   `AWS_REGION` = your region, `BEDROCK_MODEL_ID` = your model id,
-   `BEDROCK_TIMEOUT_MS` = `12000`. (Do **not** add AWS keys here.)
+   `BEDROCK_MODEL_ID` = your model id, `BEDROCK_TIMEOUT_MS` = `12000`.
+   Do **not** add AWS keys here (the role supplies them), and do **not** try to
+   set `AWS_REGION`: Lambda treats it as reserved and rejects the whole update
+   with `InvalidParameterValueException`. The runtime always sets it to the
+   function's own region, which is what the signer needs — this is exactly what
+   the first real deployment run discovered.
 6. **Configuration → Permissions → the role → Add permissions → Create inline
    policy** → JSON. The model id sits inside the ARN, so substitute the one you
    set in step 5:
@@ -154,6 +158,40 @@ To go back to your laptop, build again without the variable.
       --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
   aws iam delete-role --role-name firemind-lambda-role
   ```
+
+## Deployed and verified
+
+First real deployment (2026-09-18, account `708780720615`, `us-east-1`):
+
+```
+URL:  https://rhjyfjuqma.execute-api.us-east-1.amazonaws.com
+```
+
+Verified against the deployed endpoint, not locally: `GET /` returns the
+console HTML, `/api/health` reports `aiConfigured: true` (the role's
+credentials are live, and the signature is accepted - no
+`SignatureDoesNotMatch`), `/api/recommend` returns the full validated
+contract, `/api/similar` and `/api/summarize` answer, and the error paths are
+identical to the laptop (`400` for an empty query, `404` for an unknown route
+and for a method mismatch).
+
+The AI call itself is still gated by the account quota, and CloudWatch says so
+in AWS's own words:
+
+```
+ERROR [firemind] AI recommend failed, using fallback: bedrock-http-429:
+  {"message":"Too many tokens per day, please wait before trying again."}
+```
+
+That single line is the whole design in evidence: the request was signed
+correctly, reached the real service, was refused for an account-level reason,
+and the user still got a working answer. Two things the first run corrected are
+recorded as friction F28 and F29 - `AWS_REGION` is a reserved Lambda variable,
+and a new account's total concurrency of 10 makes a reserved-concurrency cap
+impossible.
+
+If you tear this down, this section will be describing a URL that no longer
+exists - delete the section with the stack.
 
 ## How this was verified without deploying
 

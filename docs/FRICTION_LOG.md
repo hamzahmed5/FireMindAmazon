@@ -280,7 +280,7 @@ happened and cost time — nothing here is hypothetical or fabricated.
 
 ## Summary
 
-Twenty-seven real obstacles. The first twenty fall into five kinds (F21–F27 were added later and stand on their own below):
+Thirty real obstacles. The first twenty fall into five kinds (F21–F30 were added later and stand on their own below):
 
 1. **Tooling/argument-handling traps** (F1, F2, F3, F9, F10): all silent or misleading failures — wrong paths, exit code `0` after installing nothing, servers bound to the wrong port.
 2. **Version/compatibility walls** (F5, F6, F7, F11): legitimate metadata-driven pinning work, with error messages that pointed at Kotlin/Java symptoms rather than the dependency or typing cause.
@@ -368,7 +368,52 @@ Twenty-seven real obstacles. The first twenty fall into five kinds (F21–F27 we
 
 The F18 finding is the one worth dwelling on. Every test involved passed, the build was clean, the code read correctly, and the output was a plausible 64-character signature. Nothing short of comparing it against AWS's own signer could distinguish right from wrong, which is precisely why "implemented but never executed" deserves to be stated as a limitation rather than treated as done.
 
-Every entry above was fixed and re-verified before moving on. Current state: 53/53 backend tests and 32/32 app tests passing, the Bedrock path executed end-to-end against a Converse stub with the signature pinned to AWS's own output, a full D-pad journey confirmed on the emulator, the app installed and driven on Fire OS 7 (API 28) and Fire OS 8 (API 30) equivalents — including with Google services disabled — and a physical Android phone (Samsung A55, Android 16) set to 1080p TV geometry running the full journey — chip → Results → Details → Watchlist, with the saved title surviving a relaunch — while reaching the live backend over Wi-Fi with zero crashes.
+Every entry above was fixed and re-verified before moving on. Current state: 62/62 backend tests and 32/32 app tests passing, the Bedrock path executed end-to-end against a Converse stub with the signature pinned to AWS's own output, a full D-pad journey confirmed on the emulator, the app installed and driven on Fire OS 7 (API 28) and Fire OS 8 (API 30) equivalents — including with Google services disabled — and a physical Android phone (Samsung A55, Android 16) set to 1080p TV geometry running the full journey — chip → Results → Details → Watchlist, with the saved title surviving a relaunch — while reaching the live backend over Wi-Fi with zero crashes. The backend also now runs on AWS itself (API Gateway → Lambda → Bedrock), deployed and verified end-to-end with the AI call refused only by the account quota, in AWS's own words, in CloudWatch.
+
+---
+
+## F28 — `AWS_REGION` is a reserved Lambda variable, and one bad key rejects the whole update
+
+- **Date:** 2026-09-18
+- **Tool:** AWS CLI v2 → `lambda update-function-configuration`
+- **Task:** Deploy the backend to Lambda with its configuration in environment variables
+- **Expected:** The function gets `AWS_REGION`, `BEDROCK_MODEL_ID` and `BEDROCK_TIMEOUT_MS`, and reads its credentials from the execution role
+- **Actual:** `InvalidParameterValueException: ... the environment variables you have provided contains reserved keys that are currently not supported for modification. Reserved keys used in this request: AWS_REGION`. The function was **created** by the previous step and then left with the default 3-second timeout, because the *configuration* update applies as one unit and it was rejected wholesale.
+- **Error:** `InvalidParameterValueException` naming the reserved key, with no hint that the other variables in the same call were acceptable.
+- **Root cause:** Lambda sets `AWS_REGION` (and the other `AWS_*` runtime variables) itself, so they cannot be modified. Setting them is a reasonable thing to try precisely *because* the local `.env` documents `AWS_REGION` as ordinary configuration - the variable name is portable, the write permission is not.
+- **Impact:** one failed deploy on the first real run, and a function left in a half-configured state (created, but 3 s timeout) that would have failed a smoke test for a reason unrelated to the code.
+- **Workaround / fix:** the deploy script no longer sets it; the runtime always provides the function's own region, which is exactly what the signer needs. Documented in `docs/DEPLOY_AWS.md`, and the script now comments *why* the key is absent so nobody helpfully adds it back.
+- **Actionable recommendation:** a config API that rejects a request should say per-variable what was wrong ("`AWS_REGION`: reserved; `BEDROCK_MODEL_ID`: accepted") instead of failing the batch, and the AWS docs for environment variables could list the reserved set at the point where you set them rather than in a separate page.
+
+---
+
+## F29 — A brand-new account's total Lambda concurrency is 10, so a safety cap cannot be set
+
+- **Date:** 2026-09-18
+- **Tool:** AWS CLI v2 → `lambda put-function-concurrency`
+- **Task:** Cap the deployed function at 2 concurrent executions, because the endpoint is public and every invocation can spend Bedrock money
+- **Expected:** The cap applies, bounding the blast radius of an open URL
+- **Actual:** `InvalidParameterValueException: Specified ReservedConcurrentExecutions for function decreases account's UnreservedConcurrentExecution below its minimum value of [10]`. This account's whole Lambda concurrency is **10**, so reserving 2 would leave 8 unreserved - below AWS's floor.
+- **Error:** the message states the floor but not that the account limit itself is the reason the ceiling cannot be used.
+- **Root cause:** new-account service limits. The safety feature is the first casualty of a small account: exactly the account most likely to be handed to a hacker or a demo, and the one where an unbounded public endpoint is most risky.
+- **Impact:** the intended second guard is unavailable. Had the script treated it as fatal, the deploy would have stopped *after* creating the function and would have looked like a code failure.
+- **Workaround / fix:** treated as best effort with a plain-language explanation in the output, while the API Gateway stage throttle (5 req/s, burst 10) - which has no such floor - remains in force and is the guard that always exists. The script now says which guard is missing instead of dying.
+- **Actionable recommendation:** a deployment tool should distinguish "cannot apply a safety limit" from "deployment failed", name the account-level cause, and state what protection is still active. Also worth saying in the error: "your account concurrency limit is 10; a quota increase is needed before reserved concurrency can be used".
+
+---
+
+## F30 — The `/aws/lambda/...` log-group name, mangled into a Windows path again
+
+- **Date:** 2026-09-18
+- **Tool:** AWS CLI v2 under Git Bash (MSYS) → `aws logs describe-log-streams`
+- **Task:** Read the deployed function's CloudWatch logs to find out why the AI call fell back
+- **Expected:** The log stream names come back and the events explain the failure
+- **Actual:** `InvalidParameterException: Value at 'logGroupName' failed to satisfy constraint: Member must satisfy regular expression pattern: [\.\-_/#A-Za-z0-9]+`. The argument `/aws/lambda/firemind-backend` had been rewritten into a Windows path before the CLI ever saw it - so the value that failed validation was a *local file path*, not the log group.
+- **Error:** a validation error about a name that looks correct in the command you typed.
+- **Root cause:** the same MSYS argument conversion as F20, one layer up: any leading-slash argument is a candidate, and CloudWatch log group names are the canonical example in AWS's own documentation - which is written for POSIX shells.
+- **Impact:** one round trip while chasing the most important question of the session (did the deployed AI call reach AWS?), with an error that points at the name rather than at the shell.
+- **Workaround / fix:** `MSYS_NO_PATHCONV=1` for the command (or a leading `//` which MSYS leaves alone).
+- **Actionable recommendation:** this is the second instance of the same class in one project, which is itself the finding: path-rewriting shells silently break any CLI whose arguments are identifiers beginning with `/`. Tool authors should ship a no-conversion example for Windows, and the AWS CLI could echo the *received* parameter value on validation failure, which would have made this a one-glance diagnosis.
 
 ---
 
