@@ -27,6 +27,8 @@
 |  lib/catalog.js filtering + ranking    |
 |  lib/ai.js      prompt + JSON contract |
 |  lib/bedrock.js Bedrock Converse, SigV4|
+|  lib/env.js     .env loading (shared)  |
+|  lib/console.js browser console at  /  |
 +-------------------+--------------------+
                     |
                     |  HTTPS, SigV4-signed

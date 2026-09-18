@@ -280,7 +280,7 @@ happened and cost time — nothing here is hypothetical or fabricated.
 
 ## Summary
 
-Twenty real obstacles, of five kinds:
+Twenty-seven real obstacles. The first twenty fall into five kinds (F21–F27 were added later and stand on their own below):
 
 1. **Tooling/argument-handling traps** (F1, F2, F3, F9, F10): all silent or misleading failures — wrong paths, exit code `0` after installing nothing, servers bound to the wrong port.
 2. **Version/compatibility walls** (F5, F6, F7, F11): legitimate metadata-driven pinning work, with error messages that pointed at Kotlin/Java symptoms rather than the dependency or typing cause.
@@ -304,8 +304,98 @@ Twenty real obstacles, of five kinds:
 - **Actionable recommendation:** Bedrock's onboarding should surface both waits at signup ("Bedrock access: ~2h verification, then a small daily token budget until quotas are raised") instead of letting each builder discover them as mysterious 403/429s. The quota error should also state the reset time — "wait" without a clock is the worst possible message on a deadline.
 
 ---
+
+## F22 — The documented `.env` setup did nothing: the server never read the file
+
+- **Date:** 2026-09-17
+- **Tool:** FireMind backend (Node 24) + `backend/.env.example`
+- **Task:** Follow the project's own setup step — "copy `.env.example` to `.env`" — and get Bedrock AI mode on
+- **Expected:** `/api/health` reports `aiConfigured: true`, startup logs `AI mode: Bedrock (<model>)`
+- **Actual:** `aiConfigured: false` and `AI mode: disabled - deterministic fallback active`, with perfectly valid credentials sitting in `backend/.env`. `server.js` read `process.env` only; `tools/live-check.mjs` was the only thing with a `.env` parser — its own private copy. So the dev tool reported working credentials at the exact moment the server reported none.
+- **Error:** none. The failure was entirely silent.
+- **Root cause:** the documentation and the code disagreed, and a duplicate parser in the dev tool hid it: the tool worked, the server did not.
+- **Impact:** precisely the failure a demo cannot afford — AI quietly off, no error raised, and the product still looks fine because the deterministic fallback answers instead. It surfaced only by comparing the `/api/health` response against the `live-check` verdict.
+- **Workaround / fix:** one shared zero-dependency loader, `backend/lib/env.js`, now used by *both* the server and the tool: real shell variables win over the file, and only variable **names** are logged, never values. Covered by 9 unit tests, including base64 session-token `=` padding (a truncated token would look like an auth error, not a parsing error), quote stripping, CRLF endings and precedence.
+- **Actionable recommendation:** a template that says "copy me to `.env`" should be loaded by the server it configures, not by one of its tools; and a server should state at startup which variable names it picked up from where — "found 5 variables in backend/.env" would have turned an invisible misconfiguration into a one-line log.
+
+---
+
+## F23 — The "Fire TV" was a phone: identifying a device by serial number instead of by descriptor
+
+- **Date:** 2026-09-17
+- **Tool:** `adb` on Windows + Windows PnP device enumeration
+- **Task:** Install and run the app on the physical device attached over USB
+- **Expected:** A Fire TV appears on adb, gets authorized, and takes the app
+- **Actual:** `adb devices -l` showed only `R5CX82MW6ZP  unauthorized` — a bare serial with **no product or model field**, which the earlier session read as a Fire TV and reported as such. Windows' own device tree disagreed: `SAMSUNG Mobile USB Composite Device`, `SAMSUNG Android ADB Interface`, and a WPD node named **"Hamza's A55"** — a Samsung Galaxy A55 phone. There was never a Fire TV present, so the "Allow USB debugging" dialog had no TV screen to appear on, and an hour of instructions about a TV popup was chasing a device that did not exist.
+- **Error:** none — `unauthorized` was the only signal, and it is the same word for every Android device.
+- **Root cause:** identifying a device class from an opaque serial number. Fire TV serials and phone serials are both `[A-Z0-9]{10}`; the piece of information that actually distinguishes them (the USB descriptor / model) was available on the same machine the whole time.
+- **Impact:** wasted verification effort on a device that could not support the claim anyway, plus a correction to the record. It also made the "no display" blocker look mysterious until the device was identified.
+- **Workaround / fix:** enumerate the USB descriptor (`Get-PnpDevice`) before assuming a device class, and confirm with `adb shell getprop ro.product.model` once authorized. The docs' existing "physical Fire TV hardware: untested" line was correct and needed no change — the error never reached the repository.
+- **Actionable recommendation:** `adb devices -l` prints `product:`/`model:` for authorized devices but drops both while a device is *unauthorized* — the single moment when knowing what the device is matters most (the dialog you are asking the user to find is on that device's screen).
+
+---
+
+## F24 — "This app can't be driven on a phone" was my input model, not the app
+
+- **Date:** 2026-09-17
+- **Tool:** `adb shell input keyevent` against the installed app on a Samsung Galaxy A55 (Android 16)
+- **Task:** Drive the full journey (Results → Details → Watchlist) on the physical device, not just on an emulator
+- **What I concluded first, and reported:** taps do nothing and select "does not activate the prompt buttons", therefore the deeper screens are not testable on a handheld; only Home/Ask/About were verified and the rest stayed on the emulator.
+- **What was actually true:** the app was fine the whole time. `ENTER` never failed — I was sending key events from a state I had not verified. From a **fresh** Home screen the journey is short: `DOWN` (to the mood chips), `ENTER` → Results, `ENTER` → Details, `ENTER` → *Add to Watchlist* → then `LEFT` and 10x `UP` (clamps at the top of the rail), 3x `DOWN`, `ENTER` → Watchlist. Every screen rendered, the watchlist toggle worked, and the saved title survived a `force-stop`.
+- **Error:** none. The app never failed; the sequence was wrong.
+- **Root cause:** `uiautomator` exposes no `focused="true"` node for this Compose tree, so focus position could not be read back; I guessed sequences, and when a guess produced nothing I blamed the platform instead of questioning the guess. Restarting the app between attempts (so the start state was known) and tracking the focus highlight with a **pixel diff** fixed it within minutes.
+- **Impact:** a false limitation reached a status report — "the deep journey cannot be tested on the phone" — when in fact it can, and now is. Left uncorrected it would have been written into the README as a platform fact.
+- **Workaround / fix:** never turn a failed guess into a platform claim; retest from a freshly started app. When focus cannot be read back, diff screenshots to see where the highlight moved.
+- **Actionable recommendation:** expose the focused element to accessibility tooling for focus-first TV UIs. Without it every automated drive is guesswork, and a wrong guess is indistinguishable from an app defect — which is exactly how a tooling gap becomes a false product statement.
+
+---
+
+## F25 — Touch silently does nothing in a TV app on a handheld
+
+- **Date:** 2026-09-17
+- **Tool:** `adb shell input tap` on a Samsung Galaxy A55 (Android 16)
+- **Task:** Establish whether the app can be operated by touch on a handheld — it declares `android.software.leanback` as *optional*, so it installs there by design
+- **Expected:** Compose Material buttons respond to touch as they do to D-pad select
+- **Actual:** taps at coordinates read directly from `uiautomator` bounds produced **no reaction anywhere** — nav rail, main button, mood chips, movie cards, watchlist toggle — at both phone geometry (2340x1080) and TV geometry (1920x1080 @ 320 dpi). A control test tapping *Camera* in the launcher opened `com.sec.android.app.camera/.Camera`, so input injection works fine on this device; the app is what ignores it.
+- **Error:** none. Exit code `0` on every attempt.
+- **Root cause:** not isolated. The focus-first TV components (`androidx.tv:tv-material`) in this configuration appear not to route pointer events to their click handlers.
+- **Impact:** an app that installs on a phone or tablet cannot be used there. Out of scope for a remote-driven TV target, but it is now stated in the README instead of leaving an implied "handheld support" from the optional leanback flag.
+- **Workaround / fix:** drive the app with D-pad key events — which is how every device-side verification in this project is done, on emulators and on the physical phone.
+- **Actionable recommendation:** if an app declares leanback optional so it can install on handhelds, its controls should be touch-activatable too — otherwise "installable" is mistaken for "usable"; and a UI that swallows taps without any signal makes an automation failure look like a rendering bug.
+
+---
 6. **Invalidating an independent implementation** (F18, F19, F20): the SigV4 signature that looked perfect but would have 403'd against real AWS, the Google-inclusive "Android TV" images that cannot prove Fire OS behavior, and two Windows traps whose symptom — empty output — imitates an app failure.
 
 The F18 finding is the one worth dwelling on. Every test involved passed, the build was clean, the code read correctly, and the output was a plausible 64-character signature. Nothing short of comparing it against AWS's own signer could distinguish right from wrong, which is precisely why "implemented but never executed" deserves to be stated as a limitation rather than treated as done.
 
-Every entry above was fixed and re-verified before moving on. Current state: 39/39 backend tests and 32/32 app tests passing, the Bedrock path executed end-to-end against a Converse stub with the signature pinned to AWS's own output, a full D-pad journey confirmed on the emulator, and the app installed and driven on Fire OS 7 (API 28) and Fire OS 8 (API 30) equivalents — including with Google services disabled.
+Every entry above was fixed and re-verified before moving on. Current state: 53/53 backend tests and 32/32 app tests passing, the Bedrock path executed end-to-end against a Converse stub with the signature pinned to AWS's own output, a full D-pad journey confirmed on the emulator, the app installed and driven on Fire OS 7 (API 28) and Fire OS 8 (API 30) equivalents — including with Google services disabled — and a physical Android phone (Samsung A55, Android 16) set to 1080p TV geometry running the full journey — chip → Results → Details → Watchlist, with the saved title surviving a relaunch — while reaching the live backend over Wi-Fi with zero crashes.
+
+---
+
+## F26 — An inherited `PORT=0` bound a random port, and the server looked perfectly healthy
+
+- **Date:** 2026-09-18
+- **Tool:** Node 24 + a launcher that exports `PORT=0`
+- **Task:** Start the backend so it could be watched in a browser
+- **Expected:** `[firemind] backend listening on http://localhost:8080`
+- **Actual:** `listening on http://localhost:0`. The process started, logged a normal-looking line, and answered nothing: `curl http://127.0.0.1:8080/api/health` returned an empty response while the PID was alive and healthy. Node treats port `0` as "pick any free port", so the server was listening somewhere unknown.
+- **Error:** none. This is the worst kind: no exception, exit code 0, a tidy startup log, and a dead documented address.
+- **Root cause:** `Number(process.env.PORT ?? 8080)`. `??` only guards `null`/`undefined`, so an environment that sets `PORT` to an empty string or `0` **passes the guard** and yields `0`. The variable was present but useless — which is harder to notice than being absent, because every "is it configured?" check says yes.
+- **Impact:** a silent wrong-port bind. Any client that trusts the documented address fails with what looks like a server-down error, while the server's own log gives no hint at all.
+- **Workaround / fix:** `resolvePort()` in `backend/lib/env.js`: anything that is not an integer in 1–65535 falls back to 8080. Covered by tests for `"0"`, `""`, `"   "`, `undefined`, `null`, `"not-a-port"`, `"70000"` and `"-1"`.
+- **Actionable recommendation:** treat `PORT=0` as an explicit request for an ephemeral port and *say so* in the startup log ("port 0 requested → bound ephemeral port 54321") rather than printing `localhost:0`, which reads like a valid address to everyone who skims it.
+
+---
+
+## F27 — A verification script that failed on its own bugs and could pass on its own leftovers
+
+- **Date:** 2026-09-18
+- **Tool:** `tools/verify-fireos.sh` (adb + uiautomator dump) against Fire OS 7 (API 28) and Fire OS 8 (API 30) AVDs
+- **Task:** Turn the earlier manual Fire OS runs into one repeatable command that proves the journey and the watchlist persistence
+- **Actual:** Three independent defects, wrong in **both** directions. **(a) False failures:** the screen probe recognised the Watchlist screen only by its *empty-state* text (`Nothing saved yet`). The journey saves a title first, so the screen had no such text and the probe reported `UNKNOWN` — two green steps were reported as FAIL. The obvious fix is worse: matching the word "Watchlist" would match *every* screen, because the nav rail renders that label on all of them. **(b) A false pass that mattered more:** the persistence check asserted the DataStore file was non-empty and unchanged across a restart — but an AVD keeps its user data between runs, and the first run showed `fv002,fv022` on Fire OS 7, one id inherited from an earlier session. Had the app *stopped writing to disk entirely*, the stale file would still have been non-empty and still unchanged after the restart, and the check would have passed on a broken feature.
+- **Error:** none — the script exited with a verdict either way. That is exactly the problem: a verification tool that is itself unverified produces confident wrong answers.
+- **A third, found only by re-running:** after the two fixes above, a clean-state re-run reported `FAIL firetv7: watchlist toggle did not change state` on a step that had **worked** — the dump taken 3 s after the keypress had caught the screen mid-recomposition, while the disk check in the very next line found the saved id and the Watchlist screen showed the title. One sample of a rendering state is not evidence.  **(c) A flaky assertion:** asserted on a single `uiautomator` dump taken at a fixed delay.
+- **Root cause:** three assumptions that felt safe when written — that the string `Watchlist` is unique to one screen, that "the file is still there" means "this run wrote it", and that the UI has finished rendering by the time a fixed sleep expires. Text alone identifies a Compose TV screen only if no shared chrome repeats that text; and "the saved file is still there" is not the same claim as "this run saved it".
+- **Impact:** without the fix, the artefact cited as proof of Fire OS behaviour would have been a tool that both under- and over-reported. The false-failure half cost credibility (looked like an app defect on a passing step); the false-pass half could have certified persistence that did not work.
+- **Workaround / fix:** poll for the expected text (up to 5 dumps, 2 s apart) instead of sampling once; parse `text` **with its `bounds`**, so the screen's own header (content area, x > 240 px) is distinguished from the identical rail label (x < 240); read the app's DataStore file on-device via `run-as` as direct evidence of a write; `pm clear` the app before every journey and assert it starts empty; and assert **exactly one** id is written by the single toggle — so "saved" can only mean saved *this run*. Both AVDs then passed every step, re-verified from a clean state.
+- **Actionable recommendation:** verification code deserves the same suspicion as product code — specifically, give every automated check one assumption it can *disprove* (an empty starting state) rather than one it merely observes. Shared UI chrome is the classic trap for text-based screen identification on TV interfaces, where the navigation rail never disappears.

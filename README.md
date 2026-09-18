@@ -97,7 +97,7 @@ sdk.dir=C\:\\path\\to\\android-sdk
 
 ```bash
 cd backend
-npm test        # 15 unit + integration tests
+npm test        # 53 unit + integration tests
 npm start       # listens on :8080 by default
 ```
 
@@ -117,6 +117,17 @@ Environment variables (all optional — the server runs without AI):
 serves deterministic, tested recommendations. With credentials, Bedrock
 generates reasons and summaries; any AI failure falls back automatically.
 
+### Live console
+
+Start the server and open **http://localhost:8080/** in a browser. The
+server serves a small zero-dependency page (no build step, no framework)
+that reports `/api/health` and runs `/api/recommend` from the page itself.
+Each answer carries the same badge the TV app shows — **AI · Amazon
+Bedrock** when the model answered, **Local · deterministic fallback** when
+it did not — so "is AI live right now?" is one page load instead of a log
+dig. It is served from the API's own origin, so there is no CORS setup to
+get wrong.
+
 See `backend/.env.example`.
 
 ## AI Configuration
@@ -126,6 +137,17 @@ The backend uses the Bedrock **Converse** API (`POST
 `BEDROCK_MODEL_ID` without code changes. Requests are SigV4-signed in
 `backend/lib/bedrock.js` using only `node:crypto`; there is no AWS SDK
 dependency and no credential ever touches the client app.
+
+`backend/.env` is loaded automatically at startup, and a real shell
+variable always wins over the file. The server logs which variable
+**names** it took from it — never the values:
+
+```bash
+cp backend/.env.example backend/.env   # then fill in credentials
+cd backend && npm start
+# [firemind] AI mode: Bedrock (anthropic.claude-3-haiku-20240307-v1:0)
+# [firemind] loaded from backend/.env: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, ...
+```
 
 IAM policy needed: `bedrock:InvokeModel` on the chosen model.
 
@@ -179,8 +201,12 @@ build time without code changes:
 FIREMIND_BACKEND_URL="http://192.168.1.20:8080" ./gradlew assembleDebug
 ```
 
-Cleartext HTTP is permitted **only** for loopback/`10.0.2.2` dev hosts
-via the network security config; production should serve HTTPS.
+Cleartext HTTP is permitted **only** for explicitly listed local dev hosts
+in `app/src/main/res/xml/network_security_config.xml` (loopback, `10.0.2.2`,
+plus one LAN address used for physical-device testing). Add your own host
+there before pointing a real device at it — Android blocks unlisted hosts,
+which presents as "the backend is down" rather than as a config error.
+Production should serve HTTPS.
 
 ## Tests
 
@@ -201,8 +227,9 @@ a verdict and never prints secrets):
 cd backend && node tools/live-check.mjs
 ```
 
-Backend tests (39 tests — engine, HTTP contract, validation, error paths,
-the signed Bedrock request path, and every AI degradation path):
+Backend tests (48 tests — engine, HTTP contract, validation, error paths,
+the signed Bedrock request path, the `.env` loader, and every AI degradation
+path):
 
 ```bash
 cd backend && npm test
@@ -270,6 +297,59 @@ Play services disabled, since no Fire OS build ships them:
 |---|---|---|
 | ![Fire OS 7](docs/screenshots/fireos7-api28.png) | ![Fire OS 8](docs/screenshots/fireos8-api30.png) | ![Fire OS 7 without Google services](docs/screenshots/fireos7-api28-no-google-services.png) |
 
+The whole check is repeatable — this is the mechanism behind the rows
+above, not a one-off manual session:
+
+```bash
+tools/verify-fireos.sh              # static APK audit + both Fire OS AVDs
+tools/verify-fireos.sh --avd firetv7   # one AVD
+tools/verify-fireos.sh --static-only   # no emulator
+```
+
+It installs the APK, drives the journey with D-pad key events (Home → chip
+→ Results → Details → watchlist toggle), reads the app's own DataStore file
+to prove the title was **written to disk**, force-stops and relaunches to
+prove it **survives**, and fails on any crash-buffer entry. It clears app
+data first, so a file left behind by an earlier run cannot make the
+persistence checks pass on their own.
+
+### Physical device run
+
+Installed and run on a real **Samsung Galaxy A55 (Android 16, arm64)** over
+USB — not an emulator. Leanback is declared *optional*, so the app installs
+on handhelds, which is what makes this check possible without a TV in the
+room:
+
+For the run the phone was set to **TV geometry** — `wm size 1920x1080`
+with TV density (320 dpi), the logical resolution and text scale of a
+1080p television — and its original settings were restored afterwards. So
+these are 10-foot-UI captures, not phone-shaped approximations.
+
+| Home | Ask FireMind | Results |
+|---|---|---|
+| ![Home](docs/screenshots/phone-01-home.png) | ![Ask](docs/screenshots/phone-03-ask.png) | ![Results](docs/screenshots/phone-04-results.png) |
+
+| Details | Watchlist | About — live backend |
+|---|---|---|
+| ![Details](docs/screenshots/phone-05-details.png) | ![Watchlist](docs/screenshots/phone-06-watchlist.png) | ![About, backend online and AI enabled](docs/screenshots/phone-02-about.png) |
+
+Driven entirely over adb with D-pad key events: Home → mood chip → Results
+→ Details → **Add to Watchlist** (the button then reads "✓ In Watchlist
+(remove)") → Watchlist, and the saved title **survived a `force-stop` and
+relaunch** (`phone-07-watchlist-after-restart.png`). About reads
+**"backend online, AI enabled"** against `http://192.168.0.103:8080`, and
+an HTTP GET issued *from the phone* returned
+`{"status":"ok","aiConfigured":true,…}` — the device reaching the
+backend across the LAN.
+
+Two caveats, stated plainly: this is **Android, not Fire OS**, so it is
+real-hardware evidence for rendering, navigation, networking, persistence
+and crash-freedom — but **not** Fire TV validation; and **touch does not
+activate the controls**: `input tap` produced no reaction at any
+coordinate, while D-pad events drove everything, and a control test
+confirmed that tapping *does* work on the phone by opening the Camera app
+from the launcher.
+
 ## Verified Behavior
 
 Everything below was confirmed by running the installed app on a TV
@@ -285,7 +365,11 @@ emulator, not inferred from source:
 | Runtime constraint | "under two hours" → results of 104 / 118 / 113 min (no over-cap leak) |
 | Watchlist persistence | Survives `force-stop` and relaunch; DataStore file on disk |
 | Device → backend HTTP | About screen reports "backend online" via `10.0.2.2:8080` |
-| Backend | 21/21 tests pass (`npm test`), live health + recommend verified over HTTP |
+| Real device (Galaxy A55, Android 16, arm64) | Set to 1080p TV geometry: full D-pad journey Home → chip → Results → Details → Watchlist, **0 crashes** in the crash buffer, app process alive throughout |
+| Real-device watchlist persistence | Saved title still listed after `force-stop` + relaunch |
+| Real device → backend over LAN | About shows "backend online, AI enabled"; an HTTP GET from the phone returned `{"status":"ok","aiConfigured":true,"model":"anthropic.claude-3-haiku-20240307-v1:0","catalogSize":60}` |
+| `.env` handling | Server logs the variable names loaded from `backend/.env`; `/api/health` flips to `aiConfigured: true` with nothing exported by hand (9 unit tests, incl. base64 session-token `=` padding) |
+| Backend | 48/48 tests pass (`npm test`), live health + recommend verified over HTTP |
 | App unit tests | 32/32 pass (`./gradlew testDebugUnitTest`) — engine intent parsing, ranking, reason strings, similar titles, catalog integrity |
 | Engine parity | Mood and genre synonym tables verified identical between the Kotlin and JavaScript engines |
 | Genre chips | Tapping **Sci-Fi** returns only sci-fi titles; tapping **Family** returns only family-friendly titles (verified on device against the catalog data) |
@@ -339,11 +423,12 @@ Stated plainly, so nothing here is overclaimed:
 2. **Validated on Fire OS-*equivalent* emulators, not Fire TV hardware.**
    The app was installed, launched and driven on Android TV images at API
    28 (Fire OS 7), API 30 (Fire OS 8) and API 33, including a run with
-   Google Play services disabled to approximate Fire OS. Its dependency
-   graph contains no Play services at all, and it requests only INTERNET
+   Google Play services disabled to approximate Fire OS. Its   dependency graph contains no Play services at all, and it requests only INTERNET
    and ACCESS_NETWORK_STATE. Still untested: physical Fire TV hardware, the
    Fire TV launcher's own behavior (Amazon's simulator is retired), and
-   remote-specific keys.
+   remote-specific keys. A physical *Android phone* run was also completed
+   (see Screenshots) — real hardware, real LAN, real crashes-if-any — but it
+   is not a Fire TV and is not counted as one.
 3. **The release APK is unsigned.** `assembleRelease` produces
    `app-release-unsigned.apk` (1.4 MB). I signed a copy with a throwaway
    local key to verify the minified build actually runs; that key lives in
@@ -352,13 +437,23 @@ Stated plainly, so nothing here is overclaimed:
 4. **The two recommendation engines are kept in sync by hand.** The app
    (Kotlin) and backend (JavaScript) implement the same intent parsing and
    ranking, and both suites assert the same expectations (32 app tests,
-   39 backend tests), but nothing enforces the parity automatically —
+   53 backend tests), but nothing enforces the parity automatically —
    changing one engine requires mirroring the change in the other. The
    tables were verified identical when this was written.
 5. **No demo video yet** — the shot list is ready in `docs/DEMO_SCRIPT.md`;
    recording is a manual step.
 6. **Single-locale (English) strings**, and the catalog is a fixed set of
    60 original fictional titles.
+7. **The UI is focus/D-pad driven and ignores touch.** On the physical
+   phone, `input tap` at coordinates taken directly from `uiautomator`
+   bounds produced no reaction anywhere (rail, buttons, cards) at two
+   different display geometries, while D-pad key events drove every screen;
+   a control test confirmed tapping works on the device itself. This is
+   correct for a TV app, and the manifest declares leanback optional only so
+   the build installs on handhelds for development — but it means the app is
+   not touch-operable if it is ever shipped to a tablet or phone. The
+   underlying cause (Compose touch dispatch versus the focus-first TV
+   components) was not isolated.
 7. **No authentication on the backend.** It is meant to run on a trusted
    local network for the demo; do not expose it publicly as-is.
 

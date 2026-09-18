@@ -46,6 +46,17 @@ All 60 titles are original fictional metadata created for this project.
 
 ---
 
+## `GET /` (and `GET /console`)
+
+Browser console for this API, served as `text/html`: it reports
+`/api/health` and lets a human run `/api/recommend` from the page, showing
+the same `source` badge semantics as the TV app. Zero dependencies, same
+origin as the API, so no CORS configuration is involved. It is a viewing
+aid, not part of the app contract — the JSON endpoints below are the
+contract.
+
+---
+
 ## `GET /api/health`
 
 Liveness plus AI configuration status. The app's About screen calls this.
@@ -69,6 +80,12 @@ Liveness plus AI configuration status. The app's About screen calls this.
 | `aiConfigured` | boolean | `true` when AWS credentials are present |
 | `model` | string \| null | Bedrock model id, `null` when AI is off |
 | `catalogSize` | number | Number of loaded titles |
+
+`aiConfigured` reports that credentials are **present**, not that the model
+will answer: expired session tokens, a revoked IAM policy or an account-side
+quota all still show `true` while the request falls back deterministically.
+`cd backend && node tools/live-check.mjs` is the check that makes a real
+Bedrock call and reports which case you are in.
 
 ---
 
@@ -246,5 +263,6 @@ This is why the app can trust the shape it receives.
 ## Verified behavior
 
 The contract is enforced by `backend/test/api.test.js` (live HTTP against a
-spawned server) and `backend/test/catalog.test.js` (engine + parsing).
-`npm test` runs 16 tests, including the catalog drift guard.
+spawned server), `backend/test/catalog.test.js` (engine + parsing) and
+`backend/test/env.test.js` (the `.env` loader and port resolution).
+`npm test` runs 53 tests, including the catalog drift guard.
