@@ -17,14 +17,17 @@ import androidx.tv.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.firemind.app.FireMindViewModel
 import com.firemind.app.data.CatalogRepository
+import com.firemind.app.ui.common.Badge
+import com.firemind.app.ui.common.PosterCard
+import com.firemind.app.ui.common.ScreenHeader
 import com.firemind.app.ui.theme.Brand
 import com.firemind.app.ui.theme.TextSecondary
 
@@ -49,13 +52,17 @@ fun HomeScreen(
     ) {
         item {
             Column {
-                Text("What do you want to watch?", fontSize = 40.sp)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Tell FireMind your mood, your time budget, or nothing at all.",
-                    fontSize = 20.sp,
-                    color = TextSecondary
-                )
+                Text("What do you want to watch?", fontSize = 42.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Badge("60 original titles", highlighted = false)
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        "Tell FireMind your mood, your time budget, or nothing at all.",
+                        fontSize = 19.sp,
+                        color = TextSecondary
+                    )
+                }
             }
         }
         item {
@@ -63,12 +70,12 @@ fun HomeScreen(
                 onClick = { onAsk("") },
                 modifier = Modifier.focusRequester(askFocus)
             ) {
-                Text("Ask FireMind", fontSize = 24.sp)
+                Text("Ask FireMind", fontSize = 24.sp, fontWeight = FontWeight.Bold)
             }
         }
         item {
             Column {
-                Text("Quick moods", fontSize = 24.sp)
+                Text("Quick moods", fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(8.dp))
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -84,14 +91,14 @@ fun HomeScreen(
         }
         item {
             Column {
-                Text("Recommended for you", fontSize = 24.sp)
+                Text("Recommended for you", fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(8.dp))
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     items(viewModel.catalogMovies.take(10)) { movie ->
-                        MovieCard(
+                        PosterCard(
                             title = movie.title,
                             year = movie.year,
                             runtime = movie.runtime,
@@ -99,38 +106,6 @@ fun HomeScreen(
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-fun MovieCard(
-    title: String,
-    year: Int,
-    runtime: Int,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    androidx.tv.material3.Surface(
-        onClick = onClick,
-        modifier = modifier
-            .width(220.dp)
-            .height(140.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(title, fontSize = 20.sp, maxLines = 2)
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("$year", fontSize = 16.sp, color = Brand)
-                Text("$runtime min", fontSize = 16.sp, color = TextSecondary)
             }
         }
     }

@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.tv.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -18,10 +17,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.firemind.app.FireMindViewModel
 import com.firemind.app.ui.common.EmptyScreen
-import com.firemind.app.ui.home.MovieCard
+import com.firemind.app.ui.common.PosterCard
+import com.firemind.app.ui.common.ScreenHeader
 
 /** Saved titles. Persisted locally; survives restarts. */
 @Composable
@@ -35,10 +34,10 @@ fun WatchlistScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(40.dp),
+            .padding(horizontal = 40.dp, vertical = 28.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Watchlist", fontSize = 36.sp)
+        ScreenHeader("Watchlist", "Saved on this device, across restarts")
         if (movies.isEmpty()) {
             EmptyScreen(
                 "Nothing saved yet",
@@ -50,7 +49,7 @@ fun WatchlistScreen(
             LaunchedEffect(movies.firstOrNull()?.id) { firstFocus.requestFocus() }
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(movies) { movie ->
-                    MovieCard(
+                    PosterCard(
                         title = movie.title,
                         year = movie.year,
                         runtime = movie.runtime,

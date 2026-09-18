@@ -17,6 +17,7 @@ import com.firemind.app.ui.details.DetailsScreen
 import com.firemind.app.ui.home.HomeScreen
 import com.firemind.app.ui.recommendations.ResultsScreen
 import com.firemind.app.ui.settings.SettingsScreen
+import com.firemind.app.ui.theme.GradientBackdrop
 import com.firemind.app.ui.watchlist.WatchlistScreen
 
 private fun railSectionFor(route: String): String = when {
@@ -30,7 +31,11 @@ fun FireMindAppUi(viewModel: FireMindViewModel) {
     val navController = rememberNavController()
     val assistantState by viewModel.assistant.collectAsState()
 
-    Row(Modifier.fillMaxSize()) {
+    // Backdrop wraps the WHOLE shell. (Wrapping only the rail would put a
+    // fillMaxSize Box inside this Row, which swallows the entire width and
+    // squeezes the content pane to zero - exactly what the Fire OS run caught.)
+    GradientBackdrop {
+        Row(Modifier.fillMaxSize()) {
         NavRail(
             current = railSectionFor(currentRouteOr(navController, "home")),
             onSelect = { section ->
@@ -102,6 +107,7 @@ fun FireMindAppUi(viewModel: FireMindViewModel) {
             composable("settings") {
                 SettingsScreen(viewModel)
             }
+        }
         }
     }
 }

@@ -21,12 +21,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.firemind.app.FireMindViewModel
+import com.firemind.app.ui.common.PosterCard
+import com.firemind.app.ui.common.RatingPill
+import com.firemind.app.ui.common.ScreenHeader
 import com.firemind.app.ui.theme.Brand
 import com.firemind.app.ui.theme.TextSecondary
-import com.firemind.app.ui.home.MovieCard
 
 /**
  * Content details: metadata, description, watchlist toggle, and
@@ -50,7 +53,7 @@ fun DetailsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(40.dp),
+            .padding(horizontal = 40.dp, vertical = 28.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         if (movie == null) {
@@ -58,14 +61,14 @@ fun DetailsScreen(
             return@Column
         }
 
-        Text(movie.title, fontSize = 40.sp)
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("${movie.year}", fontSize = 20.sp, color = Brand)
+        ScreenHeader(movie.title)
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text("${movie.year}", fontSize = 20.sp, color = Brand, fontWeight = FontWeight.SemiBold)
             Text(movie.genres.joinToString(" / "), fontSize = 20.sp, color = TextSecondary)
             Text("${movie.runtime} min", fontSize = 20.sp, color = TextSecondary)
-            Text("★ ${movie.rating}", fontSize = 20.sp, color = Brand)
+            RatingPill(movie.rating)
         }
-        Text(movie.description, fontSize = 22.sp)
+        Text(movie.description, fontSize = 22.sp, lineHeight = 30.sp)
 
         Button(
             onClick = {
@@ -88,10 +91,10 @@ fun DetailsScreen(
         }
 
         if (showSimilar) {
-            Text("Because you viewed ${movie.title}", fontSize = 22.sp, color = Brand)
+            Text("Because you viewed ${movie.title}", fontSize = 22.sp, color = Brand, fontWeight = FontWeight.SemiBold)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(similar?.recommendations ?: emptyList()) { rec ->
-                    MovieCard(
+                    PosterCard(
                         title = rec.title,
                         year = rec.year,
                         runtime = rec.runtime,

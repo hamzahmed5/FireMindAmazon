@@ -154,7 +154,9 @@ has = lambda s: any(s in t for t in texts)
 # (rail is 112dp wide; its labels live under x=240px even at 1080p/2x).
 content_header = any(t.strip() == "Watchlist" and x > 240 for t, x in nodes)
 if has("In Watchlist") or has("Add to Watchlist"): print("DETAILS")
-elif has("For: ") or has("curated picks"): print("RESULTS")
+# The Results screen is named by its source badge; keep these in sync with
+# ResultsScreen.kt - renaming UI text renames what this probe can see.
+elif has("Curated picks") or has("curated picks") or has("Amazon Bedrock"): print("RESULTS")
 elif has("About FireMind"): print("ABOUT")
 elif has("Quick moods"): print("HOME")
 elif has("Browse the catalog"): print("BROWSE")
