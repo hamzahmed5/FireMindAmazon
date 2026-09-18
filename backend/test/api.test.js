@@ -99,3 +99,22 @@ test("unknown route is 404", async () => {
   const { status } = await call("GET", "/api/nope");
   assert.equal(status, 404);
 });
+
+test("GET / serves the browser console as HTML", async () => {
+  const resp = await fetch(`http://127.0.0.1:${PORT}/`);
+  assert.equal(resp.status, 200);
+  assert.match(resp.headers.get("content-type"), /text\/html/);
+  const html = await resp.text();
+  assert.ok(html.includes("FireMind backend console"));
+  // It must drive the same endpoints the app uses, not a private copy.
+  assert.ok(html.includes("/api/health") && html.includes("/api/recommend"));
+  // Self-contained: no CDN, no external fonts, nothing to fetch at runtime
+  // beyond this server. Keeps the zero-dependency claim true for the UI too.
+  assert.ok(!/(src|href)="https?:/i.test(html), "console loads an external resource");
+});
+
+test("the console alias serves the same page", async () => {
+  const resp = await fetch(`http://127.0.0.1:${PORT}/console`);
+  assert.equal(resp.status, 200);
+  assert.match(resp.headers.get("content-type"), /text\/html/);
+});

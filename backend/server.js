@@ -15,8 +15,14 @@ import { createServer } from "node:http";
 import { catalog, fallbackRecommendations, similarById } from "./lib/catalog.js";
 import { BedrockClient } from "./lib/bedrock.js";
 import { aiRecommend, aiSummarize, aiSimilar } from "./lib/ai.js";
+import { loadDotEnv, resolvePort } from "./lib/env.js";
+import { consoleHtml } from "./lib/console.js";
 
-const PORT = Number(process.env.PORT ?? 8080);
+// A gitignored backend/.env is loaded here so the documented "copy
+// .env.example to .env" flow actually enables AI. Shell variables win.
+const fromDotEnv = loadDotEnv(new URL("./.env", import.meta.url));
+
+const PORT = resolvePort(process.env.PORT);
 const bedrock = new BedrockClient();
 
 const jsonHeaders = { "content-type": "application/json" };
@@ -55,6 +61,14 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
 
   try {
+    // ---- Console --------------------------------------------------------
+    // Same-origin browser view of this API, so the backend can be watched
+    // live. No build step; the JSON endpoints above stay the contract.
+    if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/console")) {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      return res.end(consoleHtml());
+    }
+
     // ---- Health ---------------------------------------------------------
     if (req.method === "GET" && url.pathname === "/api/health") {
       return send(res, 200, {
@@ -159,6 +173,10 @@ server.listen(PORT, () => {
   console.log(
     `[firemind] AI mode: ${bedrock.configured ? `Bedrock (${bedrock.modelId})` : "disabled - deterministic fallback active"}`
   );
+  if (fromDotEnv.length > 0) {
+    // Names only - values are never logged.
+    console.log(`[firemind] loaded from backend/.env: ${fromDotEnv.join(", ")}`);
+  }
   if (process.env.BEDROCK_ENDPOINT) {
     console.warn(
       `[firemind] WARNING: BEDROCK_ENDPOINT is set to ${process.env.BEDROCK_ENDPOINT}. ` +

@@ -11,17 +11,11 @@
  * typical cases are the new-account verification hold, missing model
  * access, or expired session credentials).
  */
-import { readFileSync, existsSync } from "node:fs";
 import { BedrockClient } from "../lib/bedrock.js";
+import { loadDotEnv } from "../lib/env.js";
 
-if (existsSync(new URL("../.env", import.meta.url))) {
-  for (const line of readFileSync(new URL("../.env", import.meta.url), "utf8").split("\n")) {
-    const i = line.indexOf("=");
-    if (i > 0 && !process.env[line.slice(0, i)]) {
-      process.env[line.slice(0, i)] = line.slice(i + 1).trim();
-    }
-  }
-}
+// Same loader and precedence as the server (shell environment wins).
+loadDotEnv(new URL("../.env", import.meta.url));
 
 const client = new BedrockClient();
 if (!client.configured) {
