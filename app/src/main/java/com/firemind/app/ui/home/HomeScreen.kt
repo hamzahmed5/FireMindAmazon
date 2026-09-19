@@ -281,7 +281,7 @@ private fun VoiceInsightPanel(
             Box(Modifier.size(7.dp).background(Cyan, CircleShape))
             Spacer(Modifier.width(7.dp))
             Text(
-                "AI VOICE READY",
+                "VOICE · TYPE FOR NOW",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = Outfit,
@@ -291,7 +291,7 @@ private fun VoiceInsightPanel(
         }
         Spacer(Modifier.height(10.dp))
         Text(
-            "Speak with your remote mic, or type in the bar - FireMind reads mood, not titles.",
+            "The emulator has no microphone - type your ask in the bar. On a real Fire TV, Alexa handles voice.",
             fontSize = 14.sp,
             fontFamily = Outfit,
             color = TextSoft,
