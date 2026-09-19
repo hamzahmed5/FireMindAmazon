@@ -1,5 +1,7 @@
 package com.firemind.app.ui.home
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,29 +14,36 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.tv.material3.Button
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.firemind.app.FireMindViewModel
 import com.firemind.app.data.CatalogRepository
-import com.firemind.app.ui.common.Badge
+import com.firemind.app.ui.common.MoodTile
 import com.firemind.app.ui.common.PosterCard
-import com.firemind.app.ui.common.ScreenHeader
-import com.firemind.app.ui.theme.Brand
-import com.firemind.app.ui.theme.Heading
-import com.firemind.app.ui.theme.TextSecondary
+import com.firemind.app.ui.common.SectionHeader
+import com.firemind.app.ui.theme.Cyan
+import com.firemind.app.ui.theme.Outfit
+import com.firemind.app.ui.theme.SlatePanel
+import com.firemind.app.ui.theme.TextSoft
 
 /**
- * Home: the 10-second story. Ask FireMind, quick moods, and a browse rail.
- * Focus lands on [Ask FireMind] first so the demo starts with one D-pad press.
+ * Home: the 10-second story, on the Stitch "Cinematic AI Television" system.
+ * A glowing prompt bar (one press opens the Ask screen), quick moods that
+ * query immediately, and the recommended rail. Focus lands on the prompt bar
+ * first so the demo starts with a single D-pad press.
  */
 @Composable
 fun HomeScreen(
@@ -48,54 +57,87 @@ fun HomeScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 40.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(horizontal = 48.dp, vertical = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         item {
             Column {
-                Text("What do you want to watch?", fontSize = 42.sp, fontWeight = FontWeight.Bold, color = Heading)
-                Spacer(Modifier.height(6.dp))
-                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    Badge("60 original titles", highlighted = false)
-                    Spacer(Modifier.width(10.dp))
+                // The prompt bar. Focusable surface styled like the Stitch
+                // mock: dark field, cyan ring when focused, mic-less on TV.
+                Surface(
+                    onClick = { onAsk("") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(askFocus),
+                    shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(16.dp)),
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = SlatePanel,
+                        focusedContainerColor = SlatePanel
+                    )
+                ) {
                     Text(
-                        "Tell FireMind your mood, your time budget, or nothing at all.",
-                        fontSize = 19.sp,
-                        color = TextSecondary
+                        "What to watch? Speak or type...",
+                        fontSize = 26.sp,
+                        fontFamily = Outfit,
+                        fontWeight = FontWeight.Medium,
+                        color = TextSoft,
+                        modifier = Modifier.padding(horizontal = 28.dp, vertical = 24.dp)
                     )
                 }
-            }
-        }
-        item {
-            Button(
-                onClick = { onAsk("") },
-                modifier = Modifier.focusRequester(askFocus)
-            ) {
-                Text("Ask FireMind", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Tell FireMind your mood, your time budget, or nothing at all.",
+                    fontSize = 17.sp,
+                    fontFamily = Outfit,
+                    color = TextSoft
+                )
             }
         }
         item {
             Column {
-                Text("Quick moods", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Heading)
-                Spacer(Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    SectionHeader("Quick moods")
+                    Text(
+                        "Select to query automatically",
+                        fontSize = 14.sp,
+                        fontFamily = Outfit,
+                        color = TextSoft
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
                 LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     items(CatalogRepository.MOOD_CHIPS) { mood ->
-                        Button(onClick = { onAsk(mood) }) {
-                            Text(mood, fontSize = 20.sp)
-                        }
+                        MoodTile(label = mood, onClick = { onAsk(mood) })
                     }
                 }
             }
         }
         item {
             Column {
-                Text("Recommended for you", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Heading)
-                Spacer(Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    SectionHeader("Recommended for you")
+                    Text(
+                        "View all (${viewModel.catalogMovies.size})",
+                        fontSize = 14.sp,
+                        fontFamily = Outfit,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Cyan
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
                 LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     items(viewModel.catalogMovies.take(10)) { movie ->

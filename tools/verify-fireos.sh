@@ -141,8 +141,8 @@ try:
     xml = open(sys.argv[1], encoding="utf-8", errors="replace").read()
 except OSError:
     print("NO-DUMP"); raise SystemExit
-# text + bounds together, because the nav rail shows the label "Watchlist" on
-# EVERY screen - matching that text alone would report WATCHLIST everywhere.
+# text + bounds together, because the top nav bar shows a "WATCHLIST" tab
+# on EVERY screen - matching that text alone would report WATCHLIST everywhere.
 try:
     nodes = [(m.group(1), int(m.group(2)))
              for m in re.finditer(r'text="([^"]*)"[^>]*?bounds="\[(\d+),', xml)]
@@ -150,15 +150,15 @@ except Exception:
     print("NO-DUMP"); raise SystemExit
 texts = [t for t, _ in nodes]
 has = lambda s: any(s in t for t in texts)
-# The Watchlist screen's own header sits in the content area, right of the rail
-# (rail is 112dp wide; its labels live under x=240px even at 1080p/2x).
-content_header = any(t.strip() == "Watchlist" and x > 240 for t, x in nodes)
+# The tab reads "WATCHLIST" (uppercase); only the screen's own header renders
+# the exact word "Watchlist" in the content area.
+content_header = any(t.strip() == "Watchlist" for t in texts)
 if has("In Watchlist") or has("Add to Watchlist"): print("DETAILS")
 # The Results screen is named by its source badge; keep these in sync with
 # ResultsScreen.kt - renaming UI text renames what this probe can see.
 elif has("Curated picks") or has("curated picks") or has("Amazon Bedrock"): print("RESULTS")
 elif has("About FireMind"): print("ABOUT")
-elif has("Quick moods"): print("HOME")
+elif has("Quick moods") or has("QUICK MOODS"): print("HOME")
 elif has("Browse the catalog"): print("BROWSE")
 elif has("Pick a prompt"): print("ASK")
 elif has("Nothing saved yet") or content_header: print("WATCHLIST")
@@ -269,7 +269,14 @@ verify_avd() { # avd-name, index
   key "$serial" 66; sleep 4
   expect "$serial" "$avd: open details" "DETAILS"
 
-  key "$serial" 66; sleep 3
+  # API 30 (firetv8) settles TV focus noticeably later than API 28 after the
+  # details screen appears; a select sent too early is swallowed. Give focus
+  # time to settle, then toggle - with one retry before failing.
+  sleep 2
+  key "$serial" 66
+  if ! wait_text "$serial" 'In Watchlist' 5; then
+    key "$serial" 66
+  fi
   wait_text "$serial" 'In Watchlist' 5 &&
     pass "$avd: watchlist toggle" || fail "$avd: watchlist toggle did not change state"
 
@@ -287,14 +294,14 @@ verify_avd() { # avd-name, index
     pass "$avd: exactly one title saved to disk (${ids_before%,})" ||
     fail "$avd: expected exactly 1 saved title, DataStore holds '$ids_before'"
 
-  # Rail: clamp at the top, then step down. The order is Home, Ask, Browse,
-  # Watchlist, About - the clamp is what makes the count deterministic.
+  # Top nav (Stitch layout), driven deterministically: UP from content lands
+  # on SOME tab (measured: DISCOVER), LEFT clamps to the first tab (ASK), then
+  # exactly two RIGHT steps reach WATCHLIST regardless of the landing tab.
   seek "$serial" "$avd: watchlist screen" "WATCHLIST" \
-    "19 19 19 19 19 19 19 19 19 19 20 20 20" \
-    "19 19 19 19 19 19 19 19 19 19 20 20 20 20" \
-    "19 19 19 19 19 19 19 19 19 19 20 20" \
-    "19 19 19 19 19 19 19 19 19 19 20" \
-    "19 19 19 19 19 19 19 19 19 19"
+    "19 21 21 21 21 21 21 22 22" \
+    "19 19 21 21 21 21 21 21 22 22"
+
+  # Persistence across a cold start on the same device.
 
   # Persistence across a cold start on the same device.
   "$ADB" -s "$serial" shell am force-stop "$PKG" >/dev/null 2>&1
@@ -309,11 +316,8 @@ verify_avd() { # avd-name, index
     fail "$avd: disk ids changed across restart ('$ids_before' -> '$ids_after')"
 
   seek "$serial" "$avd: watchlist survives restart" "WATCHLIST" \
-    "19 19 19 19 19 19 19 19 19 19 20 20 20" \
-    "19 19 19 19 19 19 19 19 19 19 20 20 20 20" \
-    "19 19 19 19 19 19 19 19 19 19 20 20" \
-    "19 19 19 19 19 19 19 19 19 19 20" \
-    "19 19 19 19 19 19 19 19 19 19"
+    "19 21 21 21 21 21 21 22 22" \
+    "19 19 21 21 21 21 21 21 22 22"
 
   # Crashes attributable to this app.
   local crashes
