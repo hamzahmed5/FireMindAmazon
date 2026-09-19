@@ -123,6 +123,7 @@ fun GradientBackdrop(content: @Composable () -> Unit) {
                 )
             )
             .background(SlateCanvas)
+            .background(PrimeBlack.copy(alpha = 0.55f))
     ) {
         content()
     }
@@ -136,3 +137,15 @@ fun titleArtColor(title: String): Color = when (title.length % 5) {
     3 -> Color(0xFF3A3550)
     else -> Color(0xFF23414A)
 }
+
+/** Deeper partner hue for the two-stop cinematic gradients. */
+fun titleArtColorDeep(title: String): Color = when (title.length % 5) {
+    0 -> Color(0xFF062B38)
+    1 -> Color(0xFF04202C)
+    2 -> Color(0xFF101E2E)
+    3 -> Color(0xFF151226)
+    else -> Color(0xFF07211F)
+}
+
+/** Prime-style near-black canvas - the app chrome recedes, art pops. */
+val PrimeBlack = Color(0xFF0A0C10)

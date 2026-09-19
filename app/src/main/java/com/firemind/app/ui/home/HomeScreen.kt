@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -52,6 +53,8 @@ import com.firemind.app.ui.theme.SlateHigh
 import com.firemind.app.ui.theme.SlatePanel
 import com.firemind.app.ui.theme.TextBright
 import com.firemind.app.ui.theme.TextSoft
+import com.firemind.app.ui.theme.titleArtColor
+import com.firemind.app.ui.theme.titleArtColorDeep
 
 /**
  * Home in the Stitch "Cinematic AI Television" layout: the content column on
@@ -65,14 +68,22 @@ fun HomeScreen(
     onOpenDetails: (String) -> Unit
 ) {
     val askFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { askFocus.requestFocus() }
+    val scrollState = rememberScrollState()
+    // Focus the ask bar for the one-press demo, then snap back to the top
+    // so the hero billboard is fully visible - requestFocus triggers a
+    // bring-into-view scroll that would otherwise clip the hero.
+    LaunchedEffect(Unit) {
+        askFocus.requestFocus()
+        kotlinx.coroutines.delay(250)
+        scrollState.scrollTo(0)
+    }
     val lastQuery by viewModel.lastQuery.collectAsState()
 
     Column(Modifier.fillMaxSize()) {
         Row(
             Modifier
                 .weight(1f)
-                .padding(horizontal = 48.dp, vertical = 20.dp)
+                .padding(start = 48.dp, end = 48.dp, top = 0.dp, bottom = 16.dp)
         ) {
             // ---------------- LEFT: content column ----------------
             // Scrollable: TV focus brings clipped content into view as the
@@ -80,10 +91,17 @@ fun HomeScreen(
             Column(
                 Modifier
                     .weight(1f)
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scrollState)
             ) {
-                // Prompt bar - focus lands here first so the demo starts
-                // with a single press.
+                // Prime-style hero billboard: today's featured title, full
+                // width of the content column, art-forward with a dark scrim.
+                // The ask bar stays right below it and keeps initial focus.
+                FeaturedHero(
+                    movie = viewModel.catalogMovies.firstOrNull { it.rating >= 8.0 }
+                        ?: viewModel.catalogMovies.first(),
+                    onOpenDetails = onOpenDetails
+                )
+                Spacer(Modifier.height(18.dp))
                 Surface(
                     onClick = { onAsk("") },
                     modifier = Modifier
@@ -180,6 +198,110 @@ fun HomeScreen(
         }
 
         KeyHintsFooter()
+    }
+}
+
+/**
+ * Prime Video-style hero billboard: full-bleed cinematic art for the
+ * featured title, left-aligned title block over a dark scrim, and the
+ * details entry point. This is the "content first" move - art before UI.
+ */
+@Composable
+private fun FeaturedHero(
+    movie: com.firemind.app.data.model.Movie,
+    onOpenDetails: (String) -> Unit
+) {
+    Surface(
+        onClick = { onOpenDetails(movie.id) },
+        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(14.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = SlateCard,
+            focusedContainerColor = SlateHigh
+        ),
+        scale = ClickableSurfaceDefaults.scale(scale = 1f, focusedScale = 1.02f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(210.dp)
+                .background(
+                    Brush.linearGradient(
+                        0f to titleArtColor(movie.title),
+                        1f to titleArtColorDeep(movie.title),
+                        start = Offset.Zero,
+                        end = Offset(1200f, 700f)
+                    )
+                )
+        ) {
+            // Giant ghosted wordmark initial.
+            Text(
+                movie.title.take(1),
+                fontSize = 150.sp,
+                fontWeight = FontWeight.ExtraBold,
+                fontFamily = Outfit,
+                color = Color.White.copy(alpha = 0.10f),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(end = 30.dp)
+            )
+            // Left-to-right scrim for the title block (Prime style).
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(Color(0xE606080C), Color.Transparent)
+                        )
+                    )
+            )
+            Column(
+                Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(horizontal = 32.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .background(Cyan, RoundedCornerShape(4.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            "FEATURED",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Outfit,
+                            letterSpacing = 1.6.sp,
+                            color = Color(0xFF003543)
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        "★ ${movie.rating}",
+                        fontSize = 15.sp,
+                        fontFamily = Outfit,
+                        fontWeight = FontWeight.SemiBold,
+                        color = com.firemind.app.ui.theme.Amber
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    movie.title,
+                    fontSize = 44.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontFamily = Outfit,
+                    color = TextBright,
+                    maxLines = 1
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "${movie.year}  ·  ${movie.genres.joinToString(" / ")}  ·  ${movie.runtime} min",
+                    fontSize = 16.sp,
+                    fontFamily = Outfit,
+                    color = TextSoft
+                )
+            }
+        }
     }
 }
 

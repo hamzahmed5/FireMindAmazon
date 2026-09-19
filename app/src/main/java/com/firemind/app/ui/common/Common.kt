@@ -22,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,6 +38,8 @@ import com.firemind.app.ui.theme.Outfit
 import com.firemind.app.ui.theme.SlateCard
 import com.firemind.app.ui.theme.SlateHigh
 import com.firemind.app.ui.theme.SlatePanel
+import com.firemind.app.ui.theme.titleArtColorDeep
+import com.firemind.app.ui.theme.titleArtColorDeep
 import com.firemind.app.ui.theme.TextBright
 import com.firemind.app.ui.theme.TextSecondary
 import com.firemind.app.ui.theme.TextSoft
@@ -315,8 +319,10 @@ fun RatingPill(rating: Double) {
 }
 
 /**
- * 16:9 media card per the Stitch spec: art zone with a vignette, resting
- * state has no border; focused state is drawn by the TV focus system.
+ * 16:9 media card in the Prime Video style: cinematic key-art (diagonal
+ * gradient, big ghosted initial, bottom scrim), title over the art, meta
+ * row, and the Amazon signature focus treatment - the card grows when
+ * focused.
  */
 @Composable
 fun PosterCard(
@@ -331,11 +337,12 @@ fun PosterCard(
         modifier = modifier
             .width(240.dp)
             .height(150.dp),
-        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(12.dp)),
+        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = SlateCard,
             focusedContainerColor = SlateHigh
-        )
+        ),
+        scale = ClickableSurfaceDefaults.scale(scale = 1f, focusedScale = 1.08f)
     ) {
         Column(Modifier.fillMaxSize()) {
             Box(
@@ -343,32 +350,58 @@ fun PosterCard(
                     .fillMaxSize()
                     .weight(1f)
                     .background(
-                        Brush.verticalGradient(
-                            listOf(titleArtColor(title), androidx.compose.ui.graphics.Color(0xE6101319))
+                        Brush.linearGradient(
+                            0f to titleArtColor(title),
+                            1f to titleArtColorDeep(title),
+                            start = Offset.Zero,
+                            end = Offset(600f, 600f)
                         )
                     )
-                    .padding(12.dp)
             ) {
+                // Big ghosted initial, like a poster wordmark.
                 Text(
-                    title,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
+                    title.take(1),
+                    fontSize = 64.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     fontFamily = Outfit,
-                    color = TextBright,
-                    maxLines = 2,
-                    modifier = Modifier.align(Alignment.BottomStart)
+                    color = Color.White.copy(alpha = 0.16f),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 2.dp, end = 14.dp)
                 )
-            }
-            Row(
-                Modifier
-                    .background(SlateCard)
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("$year", fontSize = 14.sp, color = TextSoft, fontFamily = Outfit)
-                Text("$runtime min", fontSize = 14.sp, color = TextSoft, fontFamily = Outfit)
+                // Bottom scrim so text stays readable over the art.
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, Color(0xCC06080C))
+                            )
+                        )
+                )
+                Column(
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        title,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Outfit,
+                        color = TextBright,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        "$year  ·  $runtime min",
+                        fontSize = 12.sp,
+                        fontFamily = Outfit,
+                        color = TextSoft
+                    )
+                }
             }
         }
     }
