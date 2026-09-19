@@ -46,6 +46,10 @@ class FireMindViewModel(
     private val _lastSummary = MutableStateFlow<String?>(null)
     val lastSummary: StateFlow<String?> = _lastSummary.asStateFlow()
 
+    /** Persists across screens for the Home "Previous query / Re-run" card. */
+    private val _lastQuery = MutableStateFlow<String?>(null)
+    val lastQuery: StateFlow<String?> = _lastQuery.asStateFlow()
+
     val watchlistIds: StateFlow<Set<String>> = watchlist.ids
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
@@ -55,6 +59,7 @@ class FireMindViewModel(
     fun ask(query: String, familyOnly: Boolean = false) {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return
+        _lastQuery.value = trimmed
         _assistant.value = AssistantUiState.Loading
         viewModelScope.launch {
             val response = client.recommend(

@@ -15,6 +15,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
+import kotlinx.coroutines.flow.flow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -99,6 +102,21 @@ fun TopNav(
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Stitch mock shows a live clock in the top bar - TV idles on this
+    // screen, so minute granularity is right. Recomputes every 30s.
+    val clock = remember {
+        flow {
+            while (true) {
+                val now = java.util.Calendar.getInstance()
+                val h = now.get(java.util.Calendar.HOUR)
+                val h12 = if (h == 0) 12 else h
+                val m = now.get(java.util.Calendar.MINUTE)
+                val ampm = if (now.get(java.util.Calendar.AM_PM) == java.util.Calendar.PM) "PM" else "AM"
+                emit(String.format("%d:%02d %s", h12, m, ampm))
+                kotlinx.coroutines.delay(30_000)
+            }
+        }
+    }.collectAsState(initial = "")
     val items = listOf(
         "home" to "ASK",
         "browse" to "DISCOVER",
@@ -109,8 +127,8 @@ fun TopNav(
         modifier = modifier
             .fillMaxWidth()
             .background(SlatePanel)
-            .padding(horizontal = 40.dp, vertical = 18.dp),
-        horizontalArrangement = Arrangement.spacedBy(34.dp),
+            .padding(horizontal = 32.dp, vertical = 18.dp),
+        horizontalArrangement = Arrangement.spacedBy(24.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Brand: white "FIREMIND" + cyan "AI".
@@ -162,7 +180,11 @@ fun TopNav(
         }
 
         // Destination tabs.
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
             items.forEach { (route, label) ->
                 val selected = current == route
                 Surface(
@@ -178,14 +200,16 @@ fun TopNav(
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp)
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                     ) {
                         Text(
                             label,
                             fontSize = 17.sp,
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                             fontFamily = Outfit,
-                            letterSpacing = 1.6.sp
+                            letterSpacing = 1.6.sp,
+                            maxLines = 1,
+                            softWrap = false
                         )
                         Spacer(Modifier.height(5.dp))
                         Box(
@@ -201,6 +225,16 @@ fun TopNav(
                 }
             }
         }
+
+        // Live clock, right-aligned per the Stitch mock.
+        Text(
+            clock.value,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium,
+            fontFamily = Outfit,
+            color = TextSoft,
+            letterSpacing = 1.sp
+        )
     }
 }
 

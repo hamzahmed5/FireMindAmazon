@@ -20,6 +20,8 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,7 +38,9 @@ import com.firemind.app.ui.common.PosterCard
 import com.firemind.app.ui.common.SectionHeader
 import com.firemind.app.ui.theme.Cyan
 import com.firemind.app.ui.theme.Outfit
+import com.firemind.app.ui.theme.SlateHigh
 import com.firemind.app.ui.theme.SlatePanel
+import com.firemind.app.ui.theme.TextBright
 import com.firemind.app.ui.theme.TextSoft
 
 /**
@@ -147,6 +151,73 @@ fun HomeScreen(
                             runtime = movie.runtime,
                             onClick = { onOpenDetails(movie.id) }
                         )
+                    }
+                }
+            }
+        }
+        item {
+            // Previous query + Re-run, per the Stitch mock. Hidden until the
+            // viewer has asked at least once this session.
+            val lastQuery by viewModel.lastQuery.collectAsState()
+            if (lastQuery != null) {
+                Surface(
+                    onClick = { onAsk(lastQuery!!) },
+                    shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(14.dp)),
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = SlatePanel,
+                        focusedContainerColor = SlateHigh
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 18.dp)
+                    ) {
+                        Text(
+                            "↻",
+                            fontSize = 26.sp,
+                            color = Cyan,
+                            fontFamily = Outfit
+                        )
+                        Spacer(Modifier.width(16.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                "PREVIOUS QUERY",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Outfit,
+                                letterSpacing = 1.6.sp,
+                                color = TextSoft
+                            )
+                            Text(
+                                "\"$lastQuery\"",
+                                fontSize = 19.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                fontFamily = Outfit,
+                                color = TextBright,
+                                maxLines = 1
+                            )
+                        }
+                        Surface(
+                            onClick = { onAsk(lastQuery!!) },
+                            shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(10.dp)),
+                            colors = ClickableSurfaceDefaults.colors(
+                                containerColor = Cyan,
+                                focusedContainerColor = Cyan
+                            ),
+                            scale = ClickableSurfaceDefaults.scale(scale = 1f, focusedScale = 1.05f)
+                        ) {
+                            Text(
+                                "Re-run",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Outfit,
+                                color = Color(0xFF003543),
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)
+                            )
+                        }
                     }
                 }
             }
