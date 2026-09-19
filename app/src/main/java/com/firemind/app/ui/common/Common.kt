@@ -383,6 +383,7 @@ fun PosterCard(
 fun MoodTile(
     label: String,
     onClick: () -> Unit,
+    badge: Int? = null,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -414,6 +415,24 @@ fun MoodTile(
                 letterSpacing = 1.4.sp,
                 color = TextBright
             )
+            if (badge != null) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .size(22.dp)
+                        .background(Cyan.copy(alpha = 0.9f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "$badge",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Outfit,
+                        color = Color(0xFF003543)
+                    )
+                }
+            }
         }
     }
 }
