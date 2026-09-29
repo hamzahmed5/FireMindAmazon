@@ -1,7 +1,5 @@
 # FireMind
 
-[![CI](https://github.com/hamzahmed5/FireMindAmazon/actions/workflows/ci.yml/badge.svg)](https://github.com/hamzahmed5/FireMindAmazon/actions/workflows/ci.yml)
-
 > An AI-powered viewing companion that helps Fire TV users discover,
 > understand, and interact with entertainment content.
 
@@ -395,7 +393,6 @@ emulator, not inferred from source:
 | Engine parity | Mood and genre synonym tables verified identical between the Kotlin and JavaScript engines |
 | Genre chips | Tapping **Sci-Fi** returns only sci-fi titles; tapping **Family** returns only family-friendly titles (verified on device against the catalog data) |
 | Release-build catalog parsing | Home rail and Browse grid populate from the minified build (kotlinx-serialization survives R8) |
-
 
 ## Project Structure
 
