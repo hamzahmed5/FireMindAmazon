@@ -55,23 +55,12 @@ not mockups. The home and results screens reflect the current Stitch
   <img src="docs/screenshots/ui-tour/08-previous-query.png" alt="Voice insight panel" width="420">
 </p>
 
-### Classic capture set
+### More of the current design
 
-| Home | Ask FireMind |
-|---|---|
-| ![Home](docs/screenshots/01-home.png) | ![Assistant](docs/screenshots/02-assistant-prompt-chips.png) |
-
-| Results with reasons | Content details |
-|---|---|
-| ![Results](docs/screenshots/03-results-with-reasons.png) | ![Details](docs/screenshots/04-details.png) |
-
-| Browse catalog | Watchlist |
-|---|---|
-| ![Browse](docs/screenshots/05-browse-catalog.png) | ![Watchlist](docs/screenshots/06-watchlist.png) |
-
-| About / backend status |
-|---|
-| ![About](docs/screenshots/07-about-backend-status.png) |
+<p align="center">
+  <img src="docs/screenshots/ui-tour/07-discover.png" alt="Discover — browse by mood" width="420">
+  <img src="docs/screenshots/ui-tour/09-two-column.png" alt="Two-column home layout" width="420">
+</p>
 
 ### Demo videos
 
@@ -345,12 +334,12 @@ restart app → watchlist persists. Shot-by-shot narration:
 ## Fire OS compatibility runs
 
 Fire OS 7 is Android 9 (API 28) and Fire OS 8 is Android 11 (API 30). The
-app was installed and driven on both, and once more on API 28 with Google
-Play services disabled, since no Fire OS build ships them:
+current build was installed and driven on both; the captures below are from
+today's runs, showing the current design on each Fire OS version:
 
-| Fire OS 7 (API 28) | Fire OS 8 (API 30) | Fire OS 7, Google services disabled |
-|---|---|---|
-| ![Fire OS 7](docs/screenshots/fireos7-api28.png) | ![Fire OS 8](docs/screenshots/fireos8-api30.png) | ![Fire OS 7 without Google services](docs/screenshots/fireos7-api28-no-google-services.png) |
+| Fire OS 7 (API 28) | Fire OS 8 (API 30) |
+|---|---|
+| ![Fire OS 7](docs/screenshots/fireos7-api28.png) | ![Fire OS 8](docs/screenshots/fireos8-api30.png) |
 
 The whole check is repeatable — this is the mechanism behind the rows
 above, not a one-off manual session:
@@ -373,12 +362,12 @@ persistence checks pass on their own.
 Installed and run on a real **Samsung Galaxy A55 (Android 16, arm64)** over
 USB — not an emulator. Leanback is declared *optional*, so the app installs
 on handhelds, which is what makes this check possible without a TV in the
-room:
-
-For the run the phone was set to **TV geometry** — `wm size 1920x1080`
+room. For the run the phone was set to **TV geometry** — `wm size 1920x1080`
 with TV density (320 dpi), the logical resolution and text scale of a
 1080p television — and its original settings were restored afterwards. So
-these are 10-foot-UI captures, not phone-shaped approximations.
+these are 10-foot-UI captures, not phone-shaped approximations. This run
+dates from the pre-redesign UI; the current design is evidenced by the Fire
+OS captures above.
 
 | Home | Ask FireMind | Results |
 |---|---|---|
