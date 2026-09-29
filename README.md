@@ -1,6 +1,6 @@
 # FireMind
 
-[![CI](https://github.com/hamzahmed5/FireMind/actions/workflows/ci.yml/badge.svg)](https://github.com/hamzahmed5/FireMind/actions/workflows/ci.yml)
+[![CI](https://github.com/hamzahmed5/FireMindAmazon/actions/workflows/ci.yml/badge.svg)](https://github.com/hamzahmed5/FireMindAmazon/actions/workflows/ci.yml)
 
 > An AI-powered viewing companion that helps Fire TV users discover,
 > understand, and interact with entertainment content.
