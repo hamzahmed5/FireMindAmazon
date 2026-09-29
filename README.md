@@ -43,8 +43,8 @@ with step-by-step Fire TV sideload instructions.
 ## Screenshots
 
 All captured from the running app (1920×1080). These are real screencaps,
-not mockups. The home and results screens reflect the current Stitch
-"Cinematic AI Television" redesign; the classic-capture set is kept below it.
+not mockups, and they all show the current Stitch "Cinematic AI Television"
+design.
 
 <p align="center">
   <img src="docs/screenshots/ui-tour/00-home-now.png" alt="Home" width="420">
