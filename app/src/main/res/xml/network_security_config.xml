@@ -11,5 +11,6 @@
         <domain includeSubdomains="false">127.0.0.1</domain>
         <!-- Local LAN dev host for real-hardware testing (gitignored-free, non-routable RFC1918). -->
         <domain includeSubdomains="false">192.168.0.103</domain>
+        <domain includeSubdomains="false">192.168.0.102</domain>
     </domain-config>
 </network-security-config>

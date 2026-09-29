@@ -365,9 +365,8 @@ on handhelds, which is what makes this check possible without a TV in the
 room. For the run the phone was set to **TV geometry** — `wm size 1920x1080`
 with TV density (320 dpi), the logical resolution and text scale of a
 1080p television — and its original settings were restored afterwards. So
-these are 10-foot-UI captures, not phone-shaped approximations. This run
-dates from the pre-redesign UI; the current design is evidenced by the Fire
-OS captures above.
+these are 10-foot-UI captures of the current design, not phone-shaped
+approximations, and they were taken against the live backend over LAN.
 
 | Home | Ask FireMind | Results |
 |---|---|---|
@@ -377,14 +376,13 @@ OS captures above.
 |---|---|---|
 | ![Details](docs/screenshots/phone-05-details.png) | ![Watchlist](docs/screenshots/phone-06-watchlist.png) | ![About, backend online and AI enabled](docs/screenshots/phone-02-about.png) |
 
-Driven entirely over adb with D-pad key events: Home → mood chip → Results
-→ Details → **Add to Watchlist** (the button then reads "✓ In Watchlist
-(remove)") → Watchlist, and the saved title **survived a `force-stop` and
-relaunch** (`phone-07-watchlist-after-restart.png`). About reads
-**"backend online, AI enabled"** against `http://192.168.0.103:8080`, and
-an HTTP GET issued *from the phone* returned
-`{"status":"ok","aiConfigured":true,…}` — the device reaching the
-backend across the LAN.
+Driven entirely over adb with D-pad key events: Home → Ask → prompt chip →
+Results → Details → **Add to Watchlist** (the button then reads "✓ In
+Watchlist (remove)") → Watchlist showing the saved title. About reads
+**"AI enabled"** against the live backend at `http://192.168.0.102:8080` —
+the device reaching the backend across the LAN. An earlier run also proved
+the saved title **survived a `force-stop` and relaunch**
+(`phone-07-watchlist-after-restart.png`).
 
 Two caveats, stated plainly: this is **Android, not Fire OS**, so it is
 real-hardware evidence for rendering, navigation, networking, persistence
