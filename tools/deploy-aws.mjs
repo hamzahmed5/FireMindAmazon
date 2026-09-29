@@ -205,7 +205,7 @@ function modelId() {
     const match = readFileSync(path, "utf8").match(/^BEDROCK_MODEL_ID=(.+)$/m);
     if (match) return match[1].trim();
   }
-  return "anthropic.claude-3-haiku-20240307-v1:0";
+  return "us.anthropic.claude-haiku-4-5-20251001-v1:0";
 }
 
 // --------------------------------------------------------------------------

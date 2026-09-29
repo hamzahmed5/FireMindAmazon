@@ -91,7 +91,7 @@ export function sigv4Headers({ host, path: reqPath, canonicalPath, body, region,
 export class BedrockClient {
   constructor({
     region = process.env.AWS_REGION ?? "us-east-1",
-    modelId = process.env.BEDROCK_MODEL_ID ?? "anthropic.claude-3-haiku-20240307-v1:0",
+    modelId = process.env.BEDROCK_MODEL_ID ?? "us.anthropic.claude-haiku-4-5-20251001-v1:0",
     accessKey = process.env.AWS_ACCESS_KEY_ID,
     secretKey = process.env.AWS_SECRET_ACCESS_KEY,
     sessionToken = process.env.AWS_SESSION_TOKEN,

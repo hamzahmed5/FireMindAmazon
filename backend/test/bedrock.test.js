@@ -280,7 +280,7 @@ test("health reports AI as configured when credentials are present", async () =>
   const { status, json } = await call("GET", "/api/health");
   assert.equal(status, 200);
   assert.equal(json.aiConfigured, true);
-  assert.match(json.model, /^anthropic\.claude/);
+  assert.match(json.model, /anthropic\./); // default may carry a us./global. profile prefix
 });
 
 test("the outbound request is correctly signed and shaped", async () => {

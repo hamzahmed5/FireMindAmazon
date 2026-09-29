@@ -107,7 +107,7 @@ Environment variables (all optional — the server runs without AI):
 |---|---|---|
 | `PORT` | HTTP port | `8080` |
 | `AWS_REGION` | Bedrock region | `us-east-1` |
-| `BEDROCK_MODEL_ID` | Model for Converse API | `anthropic.claude-3-haiku-20240307-v1:0` |
+| `BEDROCK_MODEL_ID` | Model for Converse API (newer Anthropic models need the `us.` / `global.` inference-profile prefix; the old `claude-3-haiku` was retired) | `us.anthropic.claude-haiku-4-5-20251001-v1:0` |
 | `AWS_ACCESS_KEY_ID` | AWS credential (never committed) | unset |
 | `AWS_SECRET_ACCESS_KEY` | AWS credential (never committed) | unset |
 | `AWS_SESSION_TOKEN` | For temporary credentials | unset |
@@ -164,7 +164,7 @@ variable always wins over the file. The server logs which variable
 ```bash
 cp backend/.env.example backend/.env   # then fill in credentials
 cd backend && npm start
-# [firemind] AI mode: Bedrock (anthropic.claude-3-haiku-20240307-v1:0)
+# [firemind] AI mode: Bedrock (us.anthropic.claude-haiku-4-5-20251001-v1:0)
 # [firemind] loaded from backend/.env: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, ...
 ```
 

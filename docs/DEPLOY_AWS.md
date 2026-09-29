@@ -107,8 +107,12 @@ its own modules.
    ```json
    { "Version": "2012-10-17", "Statement": [ { "Effect": "Allow",
      "Action": ["bedrock:InvokeModel"],
-     "Resource": ["arn:aws:bedrock:*::foundation-model/anthropic.claude-3-haiku-20240307-v1:0"] } ] }
+     "Resource": ["arn:aws:bedrock:*::foundation-model/us.anthropic.claude-haiku-4-5-20251001-v1:0",
+                  "arn:aws:bedrock:*:*:inference-profile/*"] } ] }
    ```
+   (The old `anthropic.claude-3-haiku-20240307-v1:0` reached end of life; newer
+   Anthropic models must be invoked through a `us.`/`global.` inference
+   profile, so the profile ARN is allowed too.)
 7. **Create the API**: API Gateway → **Create API → HTTP API → Add integration →
    Lambda** → pick `firemind-backend` → Name `firemind-api` →
    *Configure routes*: method `ANY`, resource `/{proxy+}` (plus one for `/`) →
