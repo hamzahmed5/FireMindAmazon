@@ -1,507 +1,137 @@
-# FireMind
+# FireMind 🔥🧠
 
-> An AI-powered viewing companion that helps Fire TV users discover,
-> understand, and interact with entertainment content.
+> **Stop scrolling. Start asking.** Tell Fire TV what you're in the mood for in one sentence — get 3–4 honest picks, each with a written reason.
 
-FireMind is a TV-first Android app built for Fire TV. Instead of endless
-scrolling, viewers ask in natural language — "I want a mind-bending
-sci-fi movie under two hours" — and get 3–4 recommendations, each with an
-explicit explanation of why it matches. Titles can be inspected, saved to
-a persistent watchlist, and explored by similar mood.
+<p align="center">
+  <img src="docs/screenshots/ui-tour/12-results-stitch.png" alt="FireMind results screen with honest picks and reasons" width="720">
+</p>
 
-Built for the **Build, Ship, Shape: Amazon Developer Hackathon** (Fire TV
-track).
+**FireMind** is a TV-first Android app built for Amazon Fire TV (Fire OS 7 & 8).
+Instead of endless scrolling, viewers ask in natural language — *"I want a
+mind-bending sci-fi movie under two hours"* — and get 3–4 recommendations,
+each with an explicit explanation of why it matches. Titles can be inspected,
+saved to a persistent watchlist, and explored by similar mood.
 
-## Features
+Built for the **Build, Ship, Shape: Amazon Developer Hackathon** (Fire TV track).
 
-- **Ask FireMind** — natural-language viewing requests, one D-pad press
-  away from the home screen
-- **Why This?** — every recommendation includes a reason referencing the
-  request (mood, runtime, audience)
-- **Quick moods** — Funny / Exciting / Family / Sci-Fi / Relaxing / Cozy /
-  Mind-bending chips on Home
-- **Recommendation results** — small, focused sets (3–4), never endless
-  rails; labeled honestly as `AI` or `curated picks`
-- **Content details** — metadata, description, watchlist toggle, and
-  "recommend something similar"
-- **Watchlist** — local persistence (Jetpack DataStore), survives app
-  restarts; no account needed
-- **Graceful degradation** — if the AI backend is unreachable or fails,
-  the app falls back to a deterministic local recommendation engine and
-  never leaves the user stranded
-- **60-title original catalog** — all fictional metadata, no licensing
-  concerns, shared verbatim between app and backend
+---
 
-## Architecture
+## ✨ What it does
 
-```text
-+----------------------+         +---------------------------+
-|      Fire TV App     |  HTTPS  | FireMind Backend          |
-| Android / Kotlin     | ------> | Node.js (zero deps)       |
-| Jetpack Compose TV   |  JSON   |  - /api/recommend         |
-| D-pad navigation     | <------ |  - /api/summarize         |
-+----------------------+         |  - /api/similar           |
-                                 |  - /api/health            |
-                                 +------------+--------------+
-                                              |
-                                              v
-                                 +---------------------------+
-                                 | Amazon Bedrock (Converse) |
-                                 | SigV4-signed, env-var     |
-                                 | credentials only          |
-                                 +---------------------------+
-```
-
-- The **app** never parses model prose: the backend validates the AI JSON
-  contract against the catalog (ids must exist, shape must match) before
-  responding.
-- The **backend** falls back to the same deterministic ranking the app
-  uses locally, so behavior is identical with or without AI.
-- Secrets live only in environment variables. Nothing is hardcoded.
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
-[docs/API_SPEC.md](docs/API_SPEC.md).
-
-## Tech Stack
-
-| Layer | Technology |
+| | |
 |---|---|
-| App | Kotlin 2.4, Jetpack Compose for TV (`androidx.tv:tv-material` 1.1), Navigation Compose, ViewModel, DataStore |
-| Build | Gradle 8.14.5, Android Gradle Plugin 8.13.2, compileSdk 36, minSdk 23 |
-| Backend | Node.js ≥ 20, zero npm dependencies, stdlib `http` |
-| AI | Amazon Bedrock Converse API (SigV4 implemented natively, no AWS SDK) |
-| Tests | 53 automated tests — 21 backend (Node built-in runner) + 32 app unit tests (JUnit, no device needed) — plus adb/uiautomator-driven D-pad and screen verification |
+| 🎙️ **Ask in one sentence** | One D-pad press from home to a full QWERTY, with ready-prompt chips for one-click asks |
+| 🧠 **Honest picks** | Every result shows its source: `AI · Amazon Bedrock` or `Curated picks` — the app never pretends |
+| 💬 **Why This?** | Every recommendation carries a reason referencing the request (mood, runtime, audience) |
+| 🔖 **Watchlist** | Persists across app restarts — verified on-device |
+| 🧭 **Discover** | Browse by mood tiles, featured hero billboard, poster rails |
+| ☁️ **Cloud-ready** | The same backend code runs on AWS Lambda + API Gateway |
 
-## Requirements
+## 📱 Screens
 
-- JDK 17+ (tested with OpenJDK 21)
-- Android SDK with `platforms;android-35` or newer (tested with 35 and 36)
-- Node.js 20+ for the backend (tested with Node 24)
-- For running: a Fire TV device (USB/ADB debugging enabled) **or** an
-  Android TV emulator (`tv_1080p` device profile works well)
+| Home (two-column Stitch design) | Ask screen with keyboard |
+|---|---|
+| ![Home](docs/screenshots/ui-tour/11-prime-hero.png) | ![Keyboard](docs/screenshots/ui-tour/10-keyboard-enter.png) |
 
-## Setup
+| Results with reasons | Voice panel (honest by design) |
+|---|---|
+| ![Results](docs/screenshots/ui-tour/12-results-stitch.png) | ![Voice](docs/screenshots/ui-tour/08-previous-query.png) |
 
-```bash
-git clone <REPOSITORY_URL>
-cd firemind
+*The emulator has no microphone, so the voice panel says "VOICE · TYPE FOR NOW" —
+on real Fire TV hardware, Alexa owns the voice channel.*
+
+## 🎬 Demo video
+
+A 2:45 full journey (ask → picks → details → watchlist → app restart → watchlist survives):
+
+- **Watch:** `docs/demo-video.mp4` (H.264, 5.5 MB — plays in every player)
+- Or download directly: [docs/demo-video.mp4](docs/demo-video.mp4)
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────┐      HTTP       ┌──────────────────────────────┐
+│  Fire TV app (Kotlin +  │ ──────────────► │  backend (Node, ZERO deps)   │
+│  Jetpack Compose for TV)│                 │  ├─ SigV4-signed Bedrock     │
+│  ├─ Ask / Results       │ ◄────────────── │ ├─ 60-title catalog          │
+│  ├─ Watchlist (persist) │      JSON       │ └─ honest source badge       │
+│  └─ Discover / Details  │                 └──────────────┬───────────────┘
+└─────────────────────────┘                                │ same code
+                                                           ▼
+                                            ┌──────────────────────────────┐
+                                            │  AWS Lambda + API Gateway    │
+                                            │  role: bedrock:InvokeModel   │
+                                            └──────────────────────────────┘
 ```
 
-Create `local.properties` in the repo root (or set `ANDROID_HOME`):
+- **App:** Kotlin, Jetpack Compose for TV, D-pad-first navigation, DataStore persistence
+- **Backend:** Node.js with **zero npm dependencies** — AWS SigV4 signing is
+  hand-implemented on `node:crypto`, speaking Bedrock's Converse API directly
+- **Cloud:** one Lambda, one role with exactly one permission (`bedrock:InvokeModel`),
+  deployed by [`tools/deploy-aws.mjs`](tools/deploy-aws.mjs)
+- **AI:** Amazon Bedrock (Claude Haiku 4.5 via the `us.` inference profile);
+  falls back to a deterministic curated recommender that is labeled honestly in the UI
 
-```properties
-sdk.dir=C\:\\path\\to\\android-sdk
-```
+## 🚀 Run it yourself
 
-## Backend Setup
+**Backend** (any machine, no packages to install):
 
 ```bash
 cd backend
-npm test        # 53 unit + integration tests
-npm start       # listens on :8080 by default
+cp .env.example .env        # add AWS credentials with Bedrock access
+npm start                   # → http://localhost:8080  (health: /api/health)
 ```
 
-Environment variables (all optional — the server runs without AI):
-
-| Variable | Purpose | Default |
-|---|---|---|
-| `PORT` | HTTP port | `8080` |
-| `AWS_REGION` | Bedrock region | `us-east-1` |
-| `BEDROCK_MODEL_ID` | Model for Converse API (newer Anthropic models need the `us.` / `global.` inference-profile prefix; the old `claude-3-haiku` was retired) | `us.anthropic.claude-haiku-4-5-20251001-v1:0` |
-| `AWS_ACCESS_KEY_ID` | AWS credential (never committed) | unset |
-| `AWS_SECRET_ACCESS_KEY` | AWS credential (never committed) | unset |
-| `AWS_SESSION_TOKEN` | For temporary credentials | unset |
-| `BEDROCK_TIMEOUT_MS` | AI call timeout | `12000` |
-
-**Without AWS credentials the backend still works** — every endpoint
-serves deterministic, tested recommendations. With credentials, Bedrock
-generates reasons and summaries; any AI failure falls back automatically.
-
-### Live console
-
-Start the server and open **http://localhost:8080/** in a browser. The
-server serves a small zero-dependency page (no build step, no framework)
-that reports `/api/health` and runs `/api/recommend` from the page itself.
-Each answer carries the same badge the TV app shows — **AI · Amazon
-Bedrock** when the model answered, **Local · deterministic fallback** when
-it did not — so "is AI live right now?" is one page load instead of a log
-dig. It is served from the API's own origin, so there is no CORS setup to
-get wrong. The same page is served by the AWS deployment, so a cloud
-backend can be watched in a browser too.
-
-### Deploy it to AWS (optional)
-
-The backend also runs on AWS, unchanged, as **API Gateway → Lambda → Bedrock**:
+**App** (Android Studio, or command line):
 
 ```bash
-aws login                                # credentials with IAM + Lambda + API GW rights
-node tools/deploy-aws.mjs                # creates/updates everything, prints the URL
-node tools/deploy-aws.mjs --package-only # just build the zip, touch nothing in AWS
+./gradlew :app:assembleDebug     # → app/build/outputs/apk/debug/app-debug.apk
+adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
-The function runs under an IAM role whose only permission is
-`bedrock:InvokeModel`, so **no AWS keys are stored in AWS** and the hourly
-`aws login` refresh that the laptop setup needs does not apply in the cloud.
-The account's Bedrock quota still does. The public URL is throttled
-(5 req/s, burst 10) with concurrency capped, so it cannot run up a bill.
-Point the app at it with `FIREMIND_BACKEND_URL="https://..."`. Full details,
-the console click-path, and cleanup commands: **[docs/DEPLOY_AWS.md](docs/DEPLOY_AWS.md)**.
+**On a Fire TV stick:** install the APK from the
+[Releases page](https://github.com/hamzahmed5/FireMindAmazon/releases/latest)
+with any sideloading tool (e.g. the Downloader app) — full instructions are in the release notes.
 
-See `backend/.env.example`.
+## ✅ Verification (real devices, real checks)
 
-## AI Configuration
+- **Backend test suite:** 62/62 passing (`cd backend && npm test`)
+- **App unit tests:** 32/32 passing (`./gradlew :app:testDebugUnitTest`)
+- **Fire OS journeys:** a scripted 20-check D-pad journey (`tools/verify-fireos.sh`)
+  on **Fire OS 7 (API 28)** and **Fire OS 8 (API 30)** emulators: **PASS on both**,
+  including kill → restart watchlist persistence
+- **CI workflow included** (`.github/workflows/ci.yml`) — runs both test suites on every push
 
-The backend uses the Bedrock **Converse** API (`POST
-/model/{modelId}/converse`), which is model-agnostic — swap
-`BEDROCK_MODEL_ID` without code changes. Requests are SigV4-signed in
-`backend/lib/bedrock.js` using only `node:crypto`; there is no AWS SDK
-dependency and no credential ever touches the client app.
+## 📂 Repo map
 
-`backend/.env` is loaded automatically at startup, and a real shell
-variable always wins over the file. The server logs which variable
-**names** it took from it — never the values:
-
-```bash
-cp backend/.env.example backend/.env   # then fill in credentials
-cd backend && npm start
-# [firemind] AI mode: Bedrock (us.anthropic.claude-haiku-4-5-20251001-v1:0)
-# [firemind] loaded from backend/.env: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, ...
+```
+app/                 Fire TV app (Kotlin + Compose TV)
+backend/             Zero-dependency Node backend (server.js, lib/, test/)
+docs/
+  ├─ demo-video.mp4  The 2:45 demo journey (H.264)
+  ├─ screenshots/    UI captures for every screen (Stitch design)
+  ├─ DEPLOY_AWS.md   Step-by-step AWS deployment (also automated)
+  ├─ DEMO_SCRIPT.md  What the demo video shows, second by second
+  ├─ FRICTION_LOG.md 31 real bugs/walls hit and what they taught us
+  └─ API_SPEC.md     Backend API contract
+tools/
+  ├─ deploy-aws.mjs  One-command AWS deploy (Lambda + API + role)
+  └─ verify-fireos.sh The 20-check D-pad verification suite
 ```
 
-IAM policy needed: `bedrock:InvokeModel` on the chosen model.
-
-## Fire TV Build
-
-```bash
-./gradlew assembleDebug
-# Windows PowerShell:
-.\gradlew.bat assembleDebug
-```
-
-APK output: `app/build/outputs/apk/debug/app-debug.apk`
-
-Release build (minified, resource-shrunk):
-
-```bash
-./gradlew assembleRelease
-```
-
-## Fire TV Installation
-
-Enable ADB debugging on the Fire TV (Settings → Device & Software →
-Developer Options), then:
-
-```bash
-adb connect <FIRE_TV_IP>:5555
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
-
-Or on an Android TV emulator (used during development):
-
-```bash
-avdmanager create avd -n firetv_demo -k "system-images;android-33;android-tv;x86" -d tv_1080p
-emulator -avd firetv_demo
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
-
-## Running the App
-
-Launch FireMind from the TV launcher (it appears under Your Apps), or:
-
-```bash
-adb shell am start -n com.firemind.app/com.firemind.app.MainActivity
-```
-
-The app expects the backend at `http://10.0.2.2:8080` (emulator → host
-loopback) or `http://<HOST_LAN_IP>:8080` on real devices. Override at
-build time without code changes:
-
-```bash
-FIREMIND_BACKEND_URL="http://192.168.1.20:8080" ./gradlew assembleDebug
-```
-
-Cleartext HTTP is permitted **only** for explicitly listed local dev hosts
-in `app/src/main/res/xml/network_security_config.xml` (loopback, `10.0.2.2`,
-plus one LAN address used for physical-device testing). Add your own host
-there before pointing a real device at it — Android blocks unlisted hosts,
-which presents as "the backend is down" rather than as a config error.
-Production should serve HTTPS.
-
-## Tests
-
-Both suites run without an emulator or a TV attached.
-
-App unit tests (32 tests — engine intent parsing, ranking, reason strings,
-similar titles, catalog integrity):
-
-```bash
-./gradlew testDebugUnitTest
-# HTML report: app/build/reports/tests/testDebugUnitTest/index.html
-```
-
-Live Bedrock state (one real Converse call; safe to run any time — prints
-a verdict and never prints secrets):
-
-```bash
-cd backend && node tools/live-check.mjs
-```
-
-Backend tests (48 tests — engine, HTTP contract, validation, error paths,
-the signed Bedrock request path, the `.env` loader, and every AI degradation
-path):
-
-```bash
-cd backend && npm test
-```
-
-The Bedrock tests stand up a local stub that speaks the Converse API, so the
-real orchestrator and the real signer run end to end without AWS
-credentials: the arriving request is asserted to be correctly signed and
-shaped, and a 500, prose, or empty model response must each degrade to
-deterministic picks rather than surfacing an error.
-
-Signature correctness is pinned against **AWS's own signer**: a known-answer
-test asserts the exact signature botocore produces for the identical
-request. Re-derive that value with (botocore is deliberately *not* a project
-dependency):
-
-```bash
-pip install botocore
-python backend/tools/sigv4-oracle.py --json | node backend/tools/sigv4-crosscheck.mjs
-```
-
-Because the app's offline engine and the backend's fallback engine
-implement the same behavior in two languages, both suites assert the same
-expectations (spelled-out runtimes, mood and genre intent, audience
-filtering, reason wording). Changing one engine means mirroring the change
-and its tests in the other.
-
-## Demo
-
-Demo video: *(to be added — recording checklist and shot list in
-[docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md))*
-
-Demo flow: launch → Ask FireMind → "I want a mind-bending sci-fi movie
-under two hours" → results with reasons → details → add to watchlist →
-restart app → watchlist persists.
-
-## Screenshots
-
-All captured from the running app on the Android TV emulator
-(1920×1080). These are real screencaps, not mockups.
-
-| Home | Ask FireMind |
-|---|---|
-| ![Home](docs/screenshots/01-home.png) | ![Assistant](docs/screenshots/02-assistant-prompt-chips.png) |
-
-| Results with reasons | Content details |
-|---|---|
-| ![Results](docs/screenshots/03-results-with-reasons.png) | ![Details](docs/screenshots/04-details.png) |
-
-| Browse catalog | Watchlist |
-|---|---|
-| ![Browse](docs/screenshots/05-browse-catalog.png) | ![Watchlist](docs/screenshots/06-watchlist.png) |
-
-| About / backend status |
-|---|
-| ![About](docs/screenshots/07-about-backend-status.png) |
-
-### Fire OS compatibility runs
-
-Fire OS 7 is Android 9 (API 28) and Fire OS 8 is Android 11 (API 30). The
-app was installed and driven on both, and once more on API 28 with Google
-Play services disabled, since no Fire OS build ships them:
-
-| Fire OS 7 (API 28) | Fire OS 8 (API 30) | Fire OS 7, Google services disabled |
-|---|---|---|
-| ![Fire OS 7](docs/screenshots/fireos7-api28.png) | ![Fire OS 8](docs/screenshots/fireos8-api30.png) | ![Fire OS 7 without Google services](docs/screenshots/fireos7-api28-no-google-services.png) |
-
-The whole check is repeatable — this is the mechanism behind the rows
-above, not a one-off manual session:
-
-```bash
-tools/verify-fireos.sh              # static APK audit + both Fire OS AVDs
-tools/verify-fireos.sh --avd firetv7   # one AVD
-tools/verify-fireos.sh --static-only   # no emulator
-```
-
-It installs the APK, drives the journey with D-pad key events (Home → chip
-→ Results → Details → watchlist toggle), reads the app's own DataStore file
-to prove the title was **written to disk**, force-stops and relaunches to
-prove it **survives**, and fails on any crash-buffer entry. It clears app
-data first, so a file left behind by an earlier run cannot make the
-persistence checks pass on their own.
-
-### Physical device run
-
-Installed and run on a real **Samsung Galaxy A55 (Android 16, arm64)** over
-USB — not an emulator. Leanback is declared *optional*, so the app installs
-on handhelds, which is what makes this check possible without a TV in the
-room:
-
-For the run the phone was set to **TV geometry** — `wm size 1920x1080`
-with TV density (320 dpi), the logical resolution and text scale of a
-1080p television — and its original settings were restored afterwards. So
-these are 10-foot-UI captures, not phone-shaped approximations.
-
-| Home | Ask FireMind | Results |
-|---|---|---|
-| ![Home](docs/screenshots/phone-01-home.png) | ![Ask](docs/screenshots/phone-03-ask.png) | ![Results](docs/screenshots/phone-04-results.png) |
-
-| Details | Watchlist | About — live backend |
-|---|---|---|
-| ![Details](docs/screenshots/phone-05-details.png) | ![Watchlist](docs/screenshots/phone-06-watchlist.png) | ![About, backend online and AI enabled](docs/screenshots/phone-02-about.png) |
-
-Driven entirely over adb with D-pad key events: Home → mood chip → Results
-→ Details → **Add to Watchlist** (the button then reads "✓ In Watchlist
-(remove)") → Watchlist, and the saved title **survived a `force-stop` and
-relaunch** (`phone-07-watchlist-after-restart.png`). About reads
-**"backend online, AI enabled"** against `http://192.168.0.103:8080`, and
-an HTTP GET issued *from the phone* returned
-`{"status":"ok","aiConfigured":true,…}` — the device reaching the
-backend across the LAN.
-
-Two caveats, stated plainly: this is **Android, not Fire OS**, so it is
-real-hardware evidence for rendering, navigation, networking, persistence
-and crash-freedom — but **not** Fire TV validation; and **touch does not
-activate the controls**: `input tap` produced no reaction at any
-coordinate, while D-pad events drove everything, and a control test
-confirmed that tapping *does* work on the phone by opening the Camera app
-from the launcher.
-
-## Verified Behavior
-
-Everything below was confirmed by running the installed app on a TV
-emulator, not inferred from source:
-
-| Check | Result |
-|---|---|
-| Debug build | `BUILD SUCCESSFUL`, APK produced (13.6 MB) |
-| Release build (R8 + resource shrinking) | `BUILD SUCCESSFUL`, 1.4 MB, signed locally and launched on the emulator |
-| Launch | Window focus on `MainActivity`, 1.4–1.7 s, 0 `FATAL` lines in logcat |
-| D-pad journey | Home → Ask → prompt → Results → Details → Watchlist, all remote-only |
-| Back navigation | Pops the nav stack correctly at every step |
-| Runtime constraint | "under two hours" → results of 104 / 118 / 113 min (no over-cap leak) |
-| Watchlist persistence | Survives `force-stop` and relaunch; DataStore file on disk |
-| Device → backend HTTP | About screen reports "backend online" via `10.0.2.2:8080` |
-| Real device (Galaxy A55, Android 16, arm64) | Set to 1080p TV geometry: full D-pad journey Home → chip → Results → Details → Watchlist, **0 crashes** in the crash buffer, app process alive throughout |
-| Real-device watchlist persistence | Saved title still listed after `force-stop` + relaunch |
-| Real device → backend over LAN | About shows "backend online, AI enabled"; an HTTP GET from the phone returned `{"status":"ok","aiConfigured":true,"model":"anthropic.claude-3-haiku-20240307-v1:0","catalogSize":60}` |
-| `.env` handling | Server logs the variable names loaded from `backend/.env`; `/api/health` flips to `aiConfigured: true` with nothing exported by hand (9 unit tests, incl. base64 session-token `=` padding) |
-| Backend | 48/48 tests pass (`npm test`), live health + recommend verified over HTTP |
-| App unit tests | 32/32 pass (`./gradlew testDebugUnitTest`) — engine intent parsing, ranking, reason strings, similar titles, catalog integrity |
-| Engine parity | Mood and genre synonym tables verified identical between the Kotlin and JavaScript engines |
-| Genre chips | Tapping **Sci-Fi** returns only sci-fi titles; tapping **Family** returns only family-friendly titles (verified on device against the catalog data) |
-| Release-build catalog parsing | Home rail and Browse grid populate from the minified build (kotlinx-serialization survives R8) |
-
-## Project Structure
-
-```text
-firemind/
-├── app/                        # Android TV app (Kotlin + Compose TV)
-│   └── src/main/
-│       ├── assets/catalog.json # 60-title original catalog (source of truth)
-│       └── java/com/firemind/app/
-│           ├── MainActivity.kt
-│           ├── FireMindViewModel.kt     # AI-first, fallback-second flow
-│           ├── ai/FireMindClient.kt     # Backend HTTP client
-│           ├── data/                    # repository, watchlist, models
-│           └── ui/                      # home, assistant, results, details, browse, watchlist, settings
-├── backend/                    # Zero-dependency Node server
-│   ├── server.js               # local HTTP transport
-│   ├── lambda.mjs              # API Gateway -> Lambda transport
-│   ├── lib/router.js           # the routing both transports share
-│   ├── lib/bedrock.js          # native SigV4 + Bedrock Converse
-│   ├── lib/ai.js               # prompt design + JSON contract validation
-│   ├── lib/catalog.js          # deterministic recommendation engine
-│   ├── lib/console.js          # browser console served at /
-│   ├── lib/env.js              # .env loading + port resolution
-│   └── test/                   # 62 unit + integration tests
-├── data/catalog.json           # catalog copy served by the backend
-├── docs/                       # API spec, architecture, deploy guide, friction log
-└── tools/
-    ├── gen_assets.py           # original asset generator (icons/banner)
-    ├── verify-fireos.sh        # repeatable Fire OS 7/8 emulator check
-    └── deploy-aws.mjs          # Lambda + API Gateway deployment
-```
-
-## Environment Variables
-
-See [Backend Setup](#backend-setup). The app has no secrets; its only
-config is the backend URL (build-time, `FIREMIND_BACKEND_URL`).
-
-## Known Limitations
-
-Stated plainly, so nothing here is overclaimed:
-
-1. **Bedrock is live-configured; the account quota is the last gate.** Real
-   Converse calls have now been made from this project to AWS: the request
-   is accepted (no signature error), the model ids are valid, and the
-   account-level verification hold AWS places on new accounts lifted during
-   testing. What still blocks an end-to-end AI answer is the new-account
-   **daily token quota** (`429 Too many tokens per day`), which applies to
-   every Bedrock model tried (Claude Haiku, Nova Micro, Nova Lite) and
-   resets with time, not code. Check the current state any time with
-   `cd backend && node tools/live-check.mjs`. Until it clears, the backend
-   serves the tested deterministic path — by design, the product never
-   dead-ends — and `/api/health` honestly reports `aiConfigured: true`.
-2. **Validated on Fire OS-*equivalent* emulators, not Fire TV hardware.**
-   The app was installed, launched and driven on Android TV images at API
-   28 (Fire OS 7), API 30 (Fire OS 8) and API 33, including a run with
-   Google Play services disabled to approximate Fire OS. Its   dependency graph contains no Play services at all, and it requests only INTERNET
-   and ACCESS_NETWORK_STATE. Still untested: physical Fire TV hardware, the
-   Fire TV launcher's own behavior (Amazon's simulator is retired), and
-   remote-specific keys. A physical *Android phone* run was also completed
-   (see Screenshots) — real hardware, real LAN, real crashes-if-any — but it
-   is not a Fire TV and is not counted as one.
-3. **The release APK is unsigned.** `assembleRelease` produces
-   `app-release-unsigned.apk` (1.4 MB). I signed a copy with a throwaway
-   local key to verify the minified build actually runs; that key lives in
-   ignored `build/` output and is not part of the project. Real
-   distribution needs your own signing key.
-4. **The two recommendation engines are kept in sync by hand.** The app
-   (Kotlin) and backend (JavaScript) implement the same intent parsing and
-   ranking, and both suites assert the same expectations (32 app tests,
-   53 backend tests), but nothing enforces the parity automatically —
-   changing one engine requires mirroring the change in the other. The
-   tables were verified identical when this was written.
-5. **No demo video yet** — the shot list is ready in `docs/DEMO_SCRIPT.md`;
-   recording is a manual step.
-6. **Single-locale (English) strings**, and the catalog is a fixed set of
-   60 original fictional titles.
-7. **The UI is focus/D-pad driven and ignores touch.** On the physical
-   phone, `input tap` at coordinates taken directly from `uiautomator`
-   bounds produced no reaction anywhere (rail, buttons, cards) at two
-   different display geometries, while D-pad key events drove every screen;
-   a control test confirmed tapping works on the device itself. This is
-   correct for a TV app, and the manifest declares leanback optional only so
-   the build installs on handhelds for development — but it means the app is
-   not touch-operable if it is ever shipped to a tablet or phone. The
-   underlying cause (Compose touch dispatch versus the focus-first TV
-   components) was not isolated.
-7. **No authentication on the backend.** It is meant to run on a trusted
-   local network for the demo; do not expose it publicly as-is.
-
-## Troubleshooting
-
-- **App shows "curated picks" instead of AI** — backend has no AWS
-  credentials or the model call failed; check backend console logs
-  (`[firemind] AI recommend failed...`).
-- **Backend unreachable from a real device** — use the host's LAN IP,
-  not `localhost`; add it to `network_security_config.xml` if using
-  cleartext HTTP during development.
-- **Emulator has no network to host** — `10.0.2.2` maps to the host on
-  AVDs; on Fire TV hardware use the actual LAN IP.
-- **Gradle can't find the SDK** — set `sdk.dir` in `local.properties` or
-  export `ANDROID_HOME`.
-
-## Product Feedback / Friction Log
-
-- [docs/FRICTION_LOG.md](docs/FRICTION_LOG.md) — real obstacles hit while
-  building, with root causes and workarounds
-- [docs/PRODUCT_FEEDBACK.md](docs/PRODUCT_FEEDBACK.md) — per-tool feedback
-  for the Amazon/Android developer tools used
-
-## License
+## 🧠 Design honesty
+
+The results screen always labels its source. During development, the Bedrock
+daily quota on our AWS account was **zero tokens** (account without a payment
+instrument) — the app never hid that: it kept saying **"Curated picks"** and
+kept working. When AI is available, the same screen says **"AI · Amazon Bedrock"**.
+See [docs/FRICTION_LOG.md](docs/FRICTION_LOG.md) for the full story, including
+the retired-model and inference-profile findings.
+
+## 📄 License
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+<p align="center"><sub>Built with 🔥 for the Amazon Developer Hackathon — Fire TV track</sub></p>
